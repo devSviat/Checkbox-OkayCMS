@@ -1,0 +1,454 @@
+.sviat__checkbox_buttons_block {
+    margin-left: 10px;
+    display: inline-flex;
+    align-items: center;
+}
+
+.sviat__checkbox_status_button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 6px;
+    background: #2e323b;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    position: relative;
+    width: 46px;
+    height: 34px;
+}
+
+.sviat__checkbox_status_button:hover:not(:disabled) {
+    background: #3a3f4a;
+}
+
+.sviat__checkbox_status_button:disabled {
+    cursor: default;
+    opacity: 0.8;
+}
+
+@media (max-width: 576px) {
+    .sviat__checkbox_status_button {
+        justify-content: normal;
+    }
+}
+
+.btn_checkbox {
+    color: #fff;
+    background-color: #2e323b;
+    border-color: #2e323b;
+}
+
+.btn_checkbox:hover {
+    background: #3a3f4a;
+    border-color: #3a3f4a;
+}
+
+.btn_checkbox:disabled {
+    cursor: default;
+    opacity: 0.8;
+}
+
+.btn_checkbox-return {
+    color: #ebbfbf;
+    background-color: #3b2e2e;
+    border-color: #3b2e2e;
+}
+
+.btn_checkbox-return:hover {
+    background: #4a3a3a;
+    border-color: #4a3a3a;
+}
+
+.sviat__checkbox_status_badge {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 2px solid #0000006e;
+    flex-shrink: 0;
+    z-index: 1;
+    box-sizing: content-box;
+}
+
+.sviat__checkbox_status_badge--green {
+    background-color: #28a745;
+}
+
+.sviat__checkbox_status_badge--red {
+    background-color: #dc3545;
+}
+
+.sviat__checkbox_status_badge--yellow {
+    background-color: #ffc107;
+}
+
+.sviat__checkbox_status_logo {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+}
+
+.sviat__checkbox_status_logo svg {
+    width: 16px !important;
+    height: 16px !important;
+    margin-right: 0px !important;
+}
+
+.sviat__checkbox_status_loader {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+}
+
+.sviat__checkbox_status_loader .spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-top: 2px solid #fff;
+    border-radius: 50%;
+    animation: sviat__checkbox_spin 0.8s linear infinite;
+}
+
+.sviat__checkbox_status_loader.hidden {
+    display: none;
+}
+
+@keyframes sviat__checkbox_spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.sviat__checkbox_status_button--loading .sviat__checkbox_status_logo {
+    opacity: 0.3;
+}
+
+.sviat__checkbox_status_button--loading {
+    pointer-events: none;
+}
+
+.sviat__checkbox_receipts_actions .sviat__checkbox_status_loader {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.sviat__checkbox_receipts_actions .btn {
+    position: relative;
+}
+
+.sviat__checkbox_receipt_button_text {
+    transition: opacity 0.2s ease;
+}
+
+.sviat__checkbox_list_cell {
+    width: 100%;
+    height: auto;
+    min-height: 80px;
+    display: flex;
+    align-items: center;
+    -webkit-align-items: center;
+}
+
+.okay_list .okay_list_body .okay_list_boding.sviat__checkbox_list_cell,
+.okay_list .okay_list_head .okay_list_heading.sviat__checkbox_list_cell {
+    word-break: unset;
+}
+
+.sviat__checkbox_table_wrapper {
+    min-height: 98px;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.sviat__checkbox_receipts_table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.sviat__checkbox_receipts_table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    color: #2c2c2c;
+    font-weight: 600;
+    padding: 12px 14px;
+    border-bottom: 1px solid #eee;
+    white-space: nowrap;
+    background-color: #f8f9fa;
+}
+
+.sviat__checkbox_receipts_table tbody td {
+    padding: 12px 14px;
+    border-bottom: 1px solid #f1f3f6;
+    vertical-align: middle;
+}
+
+.sviat__checkbox_receipts_table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.sviat__checkbox_receipts_table tbody tr:hover td {
+    background: rgba(238, 238, 238, 0.35);
+}
+
+.sviat__checkbox_receipts_actions_cell .order_toolbar__status {
+    display: inline-block;
+    width: 100%;
+    min-width: 120px;
+}
+
+.sviat__checkbox_receipt_id_value {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 12px;
+    color: #2c2c2c;
+    word-break: break-all;
+    text-decoration: none;
+}
+
+.sviat__checkbox_receipt_id_value:hover {
+    text-decoration: underline;
+}
+
+/* Custom actions dropdown */
+.sviat__checkbox_actions_dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.sviat__checkbox_actions_btn {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: none;
+    background-color: rgba(0, 0, 0, 0.05);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: background-color 0.2s ease;
+    color: #6f6f6f;
+}
+
+.sviat__checkbox_actions_btn:hover {
+    background-color: rgba(0, 0, 0, 0.08);
+    color: #2c2c2c;
+}
+
+.sviat__checkbox_actions_menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 4px;
+    min-width: 70px;
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 12px;
+    box-shadow: 0 5px 15px 0 hsla(0, 0%, 0%, .08);
+    list-style: none;
+    padding: 2px 4px;
+    margin: 0;
+    display: none;
+    z-index: 1000;
+}
+
+.sviat__checkbox_actions_dropdown.open .sviat__checkbox_actions_menu {
+    display: block;
+}
+
+.sviat__checkbox_actions_menu li {
+    margin: 0;
+    padding: 0;
+}
+
+.sviat__checkbox_actions_menu li a {
+    display: block;
+    padding: 8px 16px;
+    margin: 2px 0px;
+    border-radius: 8px;
+    color: #6f6f6f;
+    text-decoration: none;
+    font-size: 13px;
+    transition: background-color 0.2s ease;
+}
+
+.sviat__checkbox_actions_menu li a:hover {
+    background-color: rgba(238, 238, 238, 0.8);
+    color: #333;
+}
+
+.sviat__checkbox_actions_menu li a:active {
+    background-color: rgba(232, 232, 232);
+    color: #333;
+}
+
+.sviat__checkbox_actions_divider {
+    height: 1px;
+    margin: 6px 0;
+    background: #f1f3f6;
+    padding: 0 !important;
+}
+
+.sviat__checkbox_receipt_badge {
+    display: inline-flex !important;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+    align-items: center;
+    box-shadow: inset 0 0 0 1px #00000008;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.sviat__checkbox_receipt_badge--sale {
+    background-color: #e8f5e9;
+    color: #2e7d32 !important;
+}
+
+.sviat__checkbox_receipt_badge--return {
+    background-color: #ffebee;
+    color: #c62828 !important;
+}
+
+.sviat__checkbox_receipt_badge:hover {
+    background-color: #f5f5f5;
+    color: #2c2c2c !important;
+}
+
+.sviat__checkbox_tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.sviat__checkbox_tag--sale {
+    background-color: #e8f5e9;
+    color: #2e7d32 !important;
+}
+
+.sviat__checkbox_tag--return {
+    background-color: #ffebee;
+    color: #c62828 !important;
+}
+
+.sviat__checkbox_alert {
+    padding: 6px 12px;
+    border-radius: 3px;
+    border-left: 3px solid;
+    font-size: 14px;
+    line-height: 1.2;
+    width: fit-content;
+    margin-bottom: 10px;
+}
+
+.sviat__checkbox_alert__title {
+    font-weight: 500;
+    font-size: 13px;
+    margin-bottom: 4px;
+}
+
+.sviat__checkbox_alert__details {
+    font-size: 12px;
+    opacity: 0.9;
+    margin-top: 4px;
+}
+
+.sviat__checkbox_alert--info {
+    background-color: #e3f2fd;
+    border-left-color: #2196f3;
+    color: #1565c0;
+}
+
+.sviat__checkbox_alert--info .sviat__checkbox_alert__title {
+    color: #1565c0;
+}
+
+.sviat__checkbox_alert--info .sviat__checkbox_alert__details {
+    color: #1565c0;
+}
+
+.sviat__checkbox_alert--warning {
+    background-color: #fffde7;
+    border-left-color: #ffd54f;
+    color: #cb6912;
+}
+
+.sviat__checkbox_alert--warning .sviat__checkbox_alert__title {
+    color: #cb6912;
+}
+
+.sviat__checkbox_alert--warning .sviat__checkbox_alert__details {
+    color: #cb6912;
+}
+
+.sviat__checkbox_alert--error {
+    background-color: #ffebee;
+    border-left-color: #ef5350;
+    color: #c62828;
+}
+
+.sviat__checkbox_alert--error .sviat__checkbox_alert__title {
+    color: #c62828;
+}
+
+.sviat__checkbox_alert--error .sviat__checkbox_alert__details {
+    color: #c62828;
+}
+
+/* Баджі статусів змін */
+.sviat__checkbox_shift_status_badge {
+    display: inline-flex;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    align-items: center;
+    box-shadow: inset 0 0 0 1px #00000008;
+}
+
+.sviat__checkbox_shift_status_badge--created {
+    background-color: #f1f5f9;
+    color: #475569;
+}
+
+.sviat__checkbox_shift_status_badge--opening {
+    background-color: #e0f2fe;
+    color: #0369a1;
+}
+
+.sviat__checkbox_shift_status_badge--opened {
+    background-color: #d1fae5;
+    color: #065f46;
+}
+
+.sviat__checkbox_shift_status_badge--closing {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.sviat__checkbox_shift_status_badge--closed {
+    background-color: #f4f4f5;
+    color: #27272a;
+}

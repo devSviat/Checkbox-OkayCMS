@@ -1,0 +1,34 @@
+{
+  "Okay": "4.5.2",
+  "version": "1.0.0",
+  "moduleName": "Checkbox ПРРО",
+  "vendor": {
+    "email": "devsviat@proton.me",
+    "site": "https://github.com/devSviat"
+  },
+  "modifications": {
+    "backend": [
+      {
+        "file": "index.tpl",
+        "changes": [
+          {
+            "find": "<div class=\"admin_switches\">",
+            "childrenFind": "box_adswitch",
+            "append": "checkbox_action_buttons.tpl"
+          }
+        ]
+      }
+    ],
+    "front": [
+      {
+        "file": "order.tpl",
+        "changes": [
+          {
+            "find": "{if $delivery}",
+            "appendAfter": "order_receipt_link.tpl"
+          }
+        ]
+      }
+    ]
+  }
+}
