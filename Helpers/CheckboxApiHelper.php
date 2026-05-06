@@ -159,7 +159,18 @@ class CheckboxApiHelper
 
         $httpCode = is_numeric($curlInfo['http_code'] ?? null) ? (int)$curlInfo['http_code'] : 200;
         if ($httpCode >= 400) {
-            $this->errors['message'] = $response['message'] ?? 'HTTP Error ' . $httpCode;
+            $validationMessage = '';
+            if (!empty($response['detail'][0]['msg']) && is_string($response['detail'][0]['msg'])) {
+                $validationMessage = $response['detail'][0]['msg'];
+            }
+
+            $errorMessage = $response['message'] ?? ('HTTP Error ' . $httpCode);
+            if ($validationMessage !== '') {
+                $errorMessage .= ': ' . $validationMessage;
+                $response['message'] = $errorMessage;
+            }
+
+            $this->errors['message'] = $errorMessage;
             $this->errors['requestData'] = [
                 'url' => $url,
                 'headers' => $headers,

@@ -80,10 +80,19 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
         }
 
         $sendEmail = false;
+        $validEmail = null;
         $sendMessageSetting = $this->settings->get('sviat__checkbox__send_message');
         $sendMessageSetting = is_numeric($sendMessageSetting) ? (int)$sendMessageSetting : 0;
-        if ($sendMessageSetting && in_array($sendMessageSetting, [1, 3, 4], true) && !empty($order->email) && is_string($order->email)) {
-            $sendEmail = true;
+        if ($sendMessageSetting
+            && in_array($sendMessageSetting, [1, 3, 4], true)
+            && is_string($order->email)
+        ) {
+            $normalizedEmail = trim($order->email);
+            $validatedEmail = filter_var($normalizedEmail, FILTER_VALIDATE_EMAIL);
+            if ($validatedEmail !== false) {
+                $validEmail = $validatedEmail;
+                $sendEmail = true;
+            }
         }
 
         $cashier = $this->shiftsHelper->getCashierInfo();
@@ -180,8 +189,8 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
             'goods' => $goods,
             'payments' => $payments,
         ];
-        if ($sendEmail) {
-            $orderData['delivery'] = ['email' => $order->email];
+        if ($sendEmail && $validEmail !== null) {
+            $orderData['delivery'] = ['email' => $validEmail];
         }
 
         $receiptText = $this->settings->sviat__checkbox__receipt_text ?? '';
