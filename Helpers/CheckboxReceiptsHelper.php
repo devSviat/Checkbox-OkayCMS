@@ -339,12 +339,22 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
             $paymentMethods = $paymentsEntity->mappedBy('id')->find(['id' => array_unique($paymentMethodIds)]);
         }
 
+        // Перевіряємо існування фіскалізованого чека продажу, а не "тип останнього чека":
+        // інакше після створення чека повернення останній чек буде з is_return=1
+        // і система помилково повторно випустить новий чек продажу.
         $receipts = $receiptsEntity->find(['order_id' => array_keys($orders)]);
-        $receiptsMap = [];
+        $hasSaleReceiptMap = [];
+        $emptyReceiptMap = [];
         foreach ($receipts as $receipt) {
             $orderId = (int)$receipt->order_id;
-            if (!isset($receiptsMap[$orderId]) || $receipt->id > $receiptsMap[$orderId]->id) {
-                $receiptsMap[$orderId] = $receipt;
+            if (empty($receipt->is_return) && !empty($receipt->receipt_id)) {
+                $hasSaleReceiptMap[$orderId] = true;
+            }
+            // Порожній запис повернення не можна оновлювати під чек продажу — фіксуємо тільки порожні продажі
+            if (empty($receipt->receipt_id) && empty($receipt->is_return)) {
+                if (!isset($emptyReceiptMap[$orderId]) || $receipt->id > $emptyReceiptMap[$orderId]->id) {
+                    $emptyReceiptMap[$orderId] = $receipt;
+                }
             }
         }
 
@@ -360,12 +370,10 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
                     continue;
                 }
             }
-            $lastOrderReceipt = $receiptsMap[$orderId] ?? null;
-            if ($lastOrderReceipt && !empty($lastOrderReceipt->receipt_id) && !$lastOrderReceipt->is_return) {
+            if (!empty($hasSaleReceiptMap[$orderId])) {
                 continue; // вже є фіскалізований чек продажу
             }
-            // Якщо є порожній запис — передаємо його ID для оновлення, а не створення нового
-            $emptyReceiptId = ($lastOrderReceipt && empty($lastOrderReceipt->receipt_id)) ? (int)$lastOrderReceipt->id : null;
+            $emptyReceiptId = isset($emptyReceiptMap[$orderId]) ? (int)$emptyReceiptMap[$orderId]->id : null;
             $ordersToReceipt[$orderId] = $emptyReceiptId;
         }
 

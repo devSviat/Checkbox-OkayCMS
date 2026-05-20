@@ -172,9 +172,19 @@ class BackendExtender implements ExtensionInterface
             }
         }
 
+        // Перевіряємо існування саме чека продажу з receipt_id, а не "тип останнього чека":
+        // після створення чека повернення останній чек має is_return=1 і колишня логіка
+        // помилково запускала повторне виставлення чека продажу.
         $receiptsEntity = $this->entityFactory->get(FiscalReceiptsEntity::class);
-        $orderReceipt = $receiptsEntity->order('id_desc')->findOne(['order_id' => $order->id]);
-        if (!$orderReceipt || $orderReceipt->is_return) {
+        $saleReceipts = $receiptsEntity->find(['order_id' => $order->id, 'is_return' => 0]);
+        $hasSaleReceipt = false;
+        foreach ($saleReceipts as $saleReceipt) {
+            if (!empty($saleReceipt->receipt_id)) {
+                $hasSaleReceipt = true;
+                break;
+            }
+        }
+        if (!$hasSaleReceipt) {
             $this->checkboxHelper->createReceipt((int)$order->id, false, null);
         }
     }
@@ -217,13 +227,15 @@ class BackendExtender implements ExtensionInterface
             ? $paymentsEntity->mappedBy('id')->find(['id' => array_unique($paymentMethodIds)])
             : [];
 
+        // Перевіряємо існування саме чека продажу з receipt_id, а не "тип останнього чека":
+        // після створення чека повернення останній чек має is_return=1 і колишня логіка
+        // помилково запускала повторне виставлення чека продажу.
         $receiptsEntity = $this->entityFactory->get(FiscalReceiptsEntity::class);
         $receipts = $receiptsEntity->find(['order_id' => array_keys($ordersToProcess)]);
-        $receiptsMap = [];
+        $hasSaleReceiptMap = [];
         foreach ($receipts as $receipt) {
-            $orderId = (int)$receipt->order_id;
-            if (!isset($receiptsMap[$orderId]) || $receipt->id > $receiptsMap[$orderId]->id) {
-                $receiptsMap[$orderId] = $receipt;
+            if (empty($receipt->is_return) && !empty($receipt->receipt_id)) {
+                $hasSaleReceiptMap[(int)$receipt->order_id] = true;
             }
         }
 
@@ -233,8 +245,7 @@ class BackendExtender implements ExtensionInterface
                     continue;
                 }
             }
-            $orderReceipt = $receiptsMap[$order->id] ?? null;
-            if (!$orderReceipt || $orderReceipt->is_return) {
+            if (empty($hasSaleReceiptMap[(int)$order->id])) {
                 try {
                     $this->checkboxHelper->createReceipt((int)$order->id, false, null);
                 } catch (\Exception $e) {
