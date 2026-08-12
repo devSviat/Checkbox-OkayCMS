@@ -6,7 +6,7 @@ namespace Okay\Modules\Sviat\Checkbox\Controllers;
 
 use Okay\Controllers\AbstractController;
 use Okay\Core\Managers;
-use Okay\Modules\Sviat\Checkbox\Compat\Engine;
+use Okay\Modules\Sviat\Checkbox\Compat\AdminIdentity;
 use Okay\Entities\ManagersEntity;
 use Okay\Modules\Sviat\Checkbox\Entities\CashierShiftsEntity;
 use Okay\Modules\Sviat\Checkbox\Entities\FiscalReceiptsEntity;
@@ -19,11 +19,12 @@ class FiscalReceiptAjaxController extends AbstractController
     private const PERMISSION = 'sviat__checkbox';
 
     public function createShift(
+        AdminIdentity $adminIdentity,
         CheckboxHelper $checkboxHelper,
         Managers $managers,
         ManagersEntity $managersEntity
     ): void {
-        if (!$this->isAllowed($managers, $managersEntity)) {
+        if (!$this->isAllowed($adminIdentity, $managers, $managersEntity)) {
             return;
         }
 
@@ -32,11 +33,12 @@ class FiscalReceiptAjaxController extends AbstractController
     }
 
     public function closeShift(
+        AdminIdentity $adminIdentity,
         CheckboxHelper $checkboxHelper,
         Managers $managers,
         ManagersEntity $managersEntity
     ): void {
-        if (!$this->isAllowed($managers, $managersEntity)) {
+        if (!$this->isAllowed($adminIdentity, $managers, $managersEntity)) {
             return;
         }
 
@@ -48,12 +50,13 @@ class FiscalReceiptAjaxController extends AbstractController
      * Перевіряє статус зміни та повертає оновлений HTML-рядок таблиці для підміни на фронті.
      */
     public function updateShift(
+        AdminIdentity $adminIdentity,
         CheckboxHelper $checkboxHelper,
         CashierShiftsEntity $shiftsEntity,
         Managers $managers,
         ManagersEntity $managersEntity
     ): void {
-        if (!$this->isAllowed($managers, $managersEntity)) {
+        if (!$this->isAllowed($adminIdentity, $managers, $managersEntity)) {
             return;
         }
 
@@ -76,12 +79,13 @@ class FiscalReceiptAjaxController extends AbstractController
      * Створює чек і повертає його дані (receipt_id, дата, tax_url) для рендеру на фронті.
      */
     public function createReceipt(
+        AdminIdentity $adminIdentity,
         CheckboxHelper $checkboxHelper,
         FiscalReceiptsEntity $receiptsEntity,
         Managers $managers,
         ManagersEntity $managersEntity
     ): void {
-        if (!$this->isAllowed($managers, $managersEntity)) {
+        if (!$this->isAllowed($adminIdentity, $managers, $managersEntity)) {
             return;
         }
 
@@ -114,12 +118,16 @@ class FiscalReceiptAjaxController extends AbstractController
      * перевірки будь-хто міг відкрити чи закрити зміну і фіскалізувати чек на
      * довільне замовлення — операції, які йдуть у податкову.
      *
-     * Логін менеджера береться через Engine: там, де сесії вітрини й адмінки
-     * розділені на різні куки, $_SESSION['admin'] тут порожній завжди.
+     * Звідки береться логін менеджера, вирішує AdminIdentity: рушії
+     * зберігають бекендову сесію по-різному.
      */
-    private function isAllowed(Managers $managers, ManagersEntity $managersEntity): bool
+    private function isAllowed(
+        AdminIdentity $adminIdentity,
+        Managers $managers,
+        ManagersEntity $managersEntity
+    ): bool
     {
-        $adminLogin = Engine::adminLogin();
+        $adminLogin = $adminIdentity->login();
         if (empty($adminLogin)) {
             $this->response->setStatusCode(401);
             $this->response->setContent(json_encode(['message' => 'Unauthorized']), RESPONSE_JSON);
