@@ -122,45 +122,14 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
             }
         }
 
-        // Знижка розподіляється пропорційно на ціну кожного товару
-        $discountAmount = 0.0;
+        // Розподіл знижки й переведення в копійки — у CheckboxReceiptPayloadBuilder,
+        // щоб цю арифметику можна було перевірити тестами (див.
+        // tests/Modules/Sviat/Checkbox/ReceiptPayloadBuilderTest.php).
         $undiscountedPrice = is_numeric($order->undiscounted_total_price) ? (float)$order->undiscounted_total_price : 0.0;
         $totalPrice = is_numeric($order->total_price) ? (float)$order->total_price : 0.0;
-        if ($undiscountedPrice != $totalPrice && $undiscountedPrice > 0) {
-            $discountAmount = $undiscountedPrice - $totalPrice;
-            $discountPercent = (1 - ($totalPrice / $undiscountedPrice)) * 100;
-        }
 
-        $goods = [];
-        $totalSum = 0;
-
-        foreach ($purchases as $purchase) {
-            $purchasePrice = is_numeric($purchase->price) ? (float)$purchase->price : 0.0;
-            $purchaseAmount = is_numeric($purchase->amount) ? (int)$purchase->amount : 0;
-            $variantId = is_numeric($purchase->variant_id) ? (int)$purchase->variant_id : 0;
-
-            if ($discountAmount > 0 && isset($discountPercent)) {
-                $purchasePrice = $purchasePrice - ($purchasePrice * ($discountPercent / 100));
-                $purchase->price = $purchasePrice;
-            }
-
-            $totalSum += $purchasePrice * $purchaseAmount;
-            $productName = $purchase->fullProductName ?? ($purchase->product_name . (!empty($purchase->variant_name) ? (' - ' . $purchase->variant_name) : ''));
-
-            $goodItem = [
-                'good' => [
-                    'code' => (string)$variantId,
-                    'name' => $productName,
-                    'price' => (int)round($purchasePrice * 100),
-                    'tax' => is_array($purchase->taxes ?? null) ? $purchase->taxes : []
-                ],
-                'quantity' => $purchaseAmount * 1000
-            ];
-            if ($isReturn) {
-                $goodItem['is_return'] = true;
-            }
-            $goods[] = $goodItem;
-        }
+        $payload = CheckboxReceiptPayloadBuilder::build($purchases, $undiscountedPrice, $totalPrice, $isReturn);
+        $goods = $payload['goods'];
 
         $paymentsEntity = $this->entityFactory->get(PaymentsEntity::class);
         $paymentMethod = $paymentsEntity->findOne(['id' => $order->payment_method_id]);
@@ -172,7 +141,7 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
         $paymentType = $paymentMethod->{Init::PAYMENT_TYPE_FIELD} ?? 'CASH';
         $payments = [[
             'type' => is_string($paymentType) ? $paymentType : 'CASH',
-            'value' => (int)round($totalSum * 100)
+            'value' => $payload['paymentValue']
         ]];
 
         $paymentLabel = $paymentMethod->{Init::PAYMENT_LABEL_FIELD} ?? null;
