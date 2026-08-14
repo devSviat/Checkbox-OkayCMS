@@ -6,7 +6,7 @@ namespace Okay\Modules\Sviat\Checkbox\Controllers;
 
 use Okay\Controllers\AbstractController;
 use Okay\Core\Managers;
-use Okay\Modules\Sviat\Checkbox\Compat\AdminIdentity;
+use Okay\Modules\Sviat\Checkbox\Services\AdminIdentity;
 use Okay\Entities\ManagersEntity;
 use Okay\Modules\Sviat\Checkbox\Entities\CashierShiftsEntity;
 use Okay\Modules\Sviat\Checkbox\Entities\FiscalReceiptsEntity;

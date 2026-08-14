@@ -2,8 +2,8 @@
 
 namespace Modules\Sviat\Checkbox;
 
-use Okay\Modules\Sviat\Checkbox\Compat\AdminIdentity;
-use Okay\Modules\Sviat\Checkbox\Compat\SharedSessionAdminIdentity;
+use Okay\Modules\Sviat\Checkbox\Services\AdminIdentity;
+use Okay\Modules\Sviat\Checkbox\Services\SharedSessionAdminIdentity;
 use PHPUnit\Framework\TestCase;
 
 /**

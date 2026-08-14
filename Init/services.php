@@ -13,9 +13,9 @@ use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxApiHelper;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxHelper;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxReceiptsHelper;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxShiftsHelper;
-use Okay\Modules\Sviat\Checkbox\Compat\AdminIdentity;
-use Okay\Modules\Sviat\Checkbox\Compat\SeparateSessionAdminIdentity;
-use Okay\Modules\Sviat\Checkbox\Compat\SharedSessionAdminIdentity;
+use Okay\Modules\Sviat\Checkbox\Services\AdminIdentity;
+use Okay\Modules\Sviat\Checkbox\Services\SeparateSessionAdminIdentity;
+use Okay\Modules\Sviat\Checkbox\Services\SharedSessionAdminIdentity;
 
 return [
     // Композиційний корінь: рушій визначається один раз, тут. Далі

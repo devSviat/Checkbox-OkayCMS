@@ -1,6 +1,6 @@
 <?php
 
-namespace Okay\Modules\Sviat\Checkbox\Compat;
+namespace Okay\Modules\Sviat\Checkbox\Services;
 
 /**
  * Рушій з однією сесією на вітрину й адмінку: логін менеджера лежить
