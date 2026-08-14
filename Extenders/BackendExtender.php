@@ -46,8 +46,11 @@ class BackendExtender implements ExtensionInterface
      */
     public function initializeFiscalReceipt(): void
     {
-        $this->checkboxHelper->getAccessToken();
-
+        // Раніше тут стояв getAccessToken(). Хук висить на evensCounters, тобто
+        // виконується на КОЖНІЙ сторінці адмінки, і кожна з них чекала на
+        // блокуючий HTTPS-логін у Checkbox — 480 мс із ~500 мс усієї сторінки.
+        // Токен тут не потрібен: усі методи CheckboxShiftsHelper беруть його
+        // самі й лише коли справді йдуть в API.
         $shiftsEntity = $this->entityFactory->get(CashierShiftsEntity::class);
         $activeShift = $shiftsEntity->getActiveShift();
         if ($activeShift) {
@@ -68,6 +71,14 @@ class BackendExtender implements ExtensionInterface
      */
     public function initializeOrderReceipts($order, int $orderId): void
     {
+        // BackendOrdersHelper::findOrder() віддає false для неіснуючого
+        // замовлення — наприклад, коли менеджер відкриває картку за старим
+        // посиланням. У PHP 8 звернення до властивості false дає Warning,
+        // а той псує заголовки відповіді.
+        if (empty($order)) {
+            return;
+        }
+
         $receiptsEntity = $this->entityFactory->get(FiscalReceiptsEntity::class);
         $this->design->assign('orderReceipts', $receiptsEntity->find(['order_id' => $order->id]));
         $this->design->assign('emptyOrderReceiptsCount', $receiptsEntity->count(['receipt_id' => '', 'order_id' => $order->id]));

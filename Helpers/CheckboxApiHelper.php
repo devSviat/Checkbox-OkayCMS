@@ -121,7 +121,6 @@ class CheckboxApiHelper
         $data = curl_exec($ch);
         $curlInfo = curl_getinfo($ch);
         $curlError = curl_error($ch);
-        curl_close($ch);
 
         if ($data === false || !empty($curlError)) {
             $this->errors['message'] = $curlError ?: 'CURL Error';
