@@ -14,17 +14,10 @@ use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxHelper;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxReceiptsHelper;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxShiftsHelper;
 use Okay\Modules\Sviat\Checkbox\Services\AdminIdentity;
-use Okay\Modules\Sviat\Checkbox\Services\SeparateSessionAdminIdentity;
-use Okay\Modules\Sviat\Checkbox\Services\SharedSessionAdminIdentity;
 
 return [
-    // Композиційний корінь: рушій визначається один раз, тут. Далі
-    // контролери працюють з портом і про різницю не знають. За номером
-    // версії рушії не розрізнити — обидва звуть себе 4.5.2.
     AdminIdentity::class => [
-        'class' => class_exists('Okay\\Core\\Security\\SessionNames')
-            ? SeparateSessionAdminIdentity::class
-            : SharedSessionAdminIdentity::class,
+        'class' => AdminIdentity::class,
         'arguments' => [],
     ],
     CheckboxApiHelper::class => [
