@@ -13,7 +13,7 @@ use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxApiHelper;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxHelper;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxReceiptsHelper;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxShiftsHelper;
-use Okay\Modules\Sviat\Checkbox\Services\AdminIdentity;
+use Okay\Modules\Sviat\Checkbox\Security\AdminIdentity;
 
 return [
     AdminIdentity::class => [

@@ -2,7 +2,7 @@
 
 namespace Modules\Sviat\Checkbox;
 
-use Okay\Modules\Sviat\Checkbox\Services\AdminIdentity;
+use Okay\Modules\Sviat\Checkbox\Security\AdminIdentity;
 use PHPUnit\Framework\TestCase;
 
 /**

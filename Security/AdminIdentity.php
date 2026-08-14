@@ -1,6 +1,6 @@
 <?php
 
-namespace Okay\Modules\Sviat\Checkbox\Services;
+namespace Okay\Modules\Sviat\Checkbox\Security;
 
 use Okay\Core\Security\SessionNames;
 
