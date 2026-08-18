@@ -99,7 +99,15 @@ class BackendExtender implements ExtensionInterface
     {
         $taxGroupsEntity = $this->entityFactory->get(TaxGroupsEntity::class);
         $this->design->assign('checkboxTaxes', $taxGroupsEntity->find());
-        $this->design->assign('checkboxProductTaxes', $taxGroupsEntity->getProductTaxGroups((int)$product->id));
+
+        // На створенні товару $product - порожній stdClass без id. Звертання до
+        // нього друкує попередження в тіло відповіді, після чого жоден заголовок
+        // уже не виставити.
+        $productId = (int)($product->id ?? 0);
+        $this->design->assign(
+            'checkboxProductTaxes',
+            $productId > 0 ? $taxGroupsEntity->getProductTaxGroups($productId) : []
+        );
     }
 
     /** Хук збереження товару: синхронізує прив'язку товару до груп ПДВ. */
@@ -111,11 +119,16 @@ class BackendExtender implements ExtensionInterface
             $productTaxes = [];
         }
 
-        $taxGroupsEntity->deleteProductTaxGroups((int)$product->id);
+        $productId = (int)($product->id ?? 0);
+        if ($productId <= 0) {
+            return;
+        }
+
+        $taxGroupsEntity->deleteProductTaxGroups($productId);
         foreach ($productTaxes as $productTax) {
             $taxId = is_numeric($productTax) ? (int)$productTax : 0;
             if ($taxId > 0) {
-                $taxGroupsEntity->addProductTaxGroup((int)$product->id, $taxId);
+                $taxGroupsEntity->addProductTaxGroup($productId, $taxId);
             }
         }
     }
