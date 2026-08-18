@@ -6,6 +6,7 @@ use Okay\Core\Design;
 use Okay\Core\EntityFactory;
 use Okay\Modules\Sviat\Checkbox\Entities\TaxGroupsEntity;
 use Okay\Modules\Sviat\Checkbox\Extenders\BackendExtender;
+use Closure;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 
@@ -48,9 +49,19 @@ class ProductTaxGroupsHookTest extends TestCase
         $factory->method('get')->willReturn($taxGroups);
 
         $extender = (new ReflectionClass(BackendExtender::class))->newInstanceWithoutConstructor();
-        foreach (['design' => $design, 'entityFactory' => $factory] as $property => $value) {
-            (new \ReflectionProperty(BackendExtender::class, $property))->setValue($extender, $value);
-        }
+
+        // Closure::call, а не ReflectionProperty: на PHP 8.0 запис у приватну
+        // властивість вимагає setAccessible(), а з 8.1 той самий виклик
+        // задепрекейчено. Модуль їде на обох рушіях, тож потрібен спосіб без
+        // розгалуження за версією.
+        Closure::bind(
+            function () use ($design, $factory) {
+                $this->design = $design;
+                $this->entityFactory = $factory;
+            },
+            $extender,
+            BackendExtender::class
+        )();
 
         return $extender;
     }
