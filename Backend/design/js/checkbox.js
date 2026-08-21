@@ -44,14 +44,7 @@ $(function(){
                             let windowPrint = window.open(response.link);
                             windowPrint.print();
                         } else {
-                            if (typeof $.fancybox !== 'undefined') {
-                                $.fancybox.open({
-                                    src: response.link,
-                                    type : 'iframe'
-                                });
-                            } else {
-                                window.open(response.link);
-                            }
+                            window.open(response.link);
                         }
                     } else {
                         setTimeout(function() {
