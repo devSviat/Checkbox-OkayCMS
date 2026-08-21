@@ -84,11 +84,10 @@ class Init extends AbstractInit
             (new EntityField('closed_at'))->setTypeTimestamp(true, null),
         ]);
 
-        // Складений PK для таблиці зв'язку — додається вручну
-        $sl = ServiceLocator::getInstance();
-        $sql = $sl->getService(QueryFactory::class)->newSqlQuery();
-        $sql->setStatement("ALTER TABLE " . self::PRODUCT_TAX_GROUPS_TABLE . " ADD PRIMARY KEY (`product_id`,`tax_id`)");
-        $sl->getService(Database::class)->query($sql);
+        // Складений PK для таблиці зв'язку — додається вручну. Видалення
+        // модуля не відкочує міграцій, тож при повторній установці таблиця вже
+        // з ключем: без перевірки це 1068 Multiple primary key defined у лог.
+        $this->addProductTaxGroupsPrimaryKey();
 
         $this->migrateEntityField(
             ManagersEntity::class,
@@ -203,5 +202,31 @@ class Init extends AbstractInit
                 </defs>
             </svg>'
         );
+    }
+
+    /** Складений PK на таблиці звʼязку, якщо його там ще немає. */
+    private function addProductTaxGroupsPrimaryKey(): void
+    {
+        if ($this->hasPrimaryKey(self::PRODUCT_TAX_GROUPS_TABLE)) {
+            return;
+        }
+
+        $sl = ServiceLocator::getInstance();
+        $sql = $sl->getService(QueryFactory::class)->newSqlQuery();
+        $sql->setStatement('ALTER TABLE ' . self::PRODUCT_TAX_GROUPS_TABLE . ' ADD PRIMARY KEY (`product_id`,`tax_id`)');
+        $sl->getService(Database::class)->query($sql);
+    }
+
+    private function hasPrimaryKey(string $table): bool
+    {
+        $sl = ServiceLocator::getInstance();
+        $sql = $sl->getService(QueryFactory::class)->newSqlQuery();
+        $sql->setStatement("SHOW INDEX FROM `{$table}` WHERE Key_name = 'PRIMARY'");
+
+        if ($sl->getService(Database::class)->query($sql) !== true) {
+            return false;
+        }
+
+        return $sl->getService(Database::class)->results() !== [];
     }
 }
