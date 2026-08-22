@@ -72,11 +72,18 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
             return (object)['message' => $this->translations->getTranslation('sviat__checkbox__errors_find_purchases')];
         }
 
-        // Якщо зміна закрита — зберігаємо порожній чек; він буде відправлений при наступному cron-запуску
+        // Зміна закрита — лишаємо запис без receipt_id; чек піде, коли зміну
+        // відкриють і замовлення знову потрапить у createReceiptsForPaidOrders().
+        //
+        // Такий запис на замовлення має бути один. Викликів при закритій зміні
+        // буває скільки завгодно — кнопка в адмінці, масова дія, хук оплати, —
+        // і без пошуку наявного кожен додавав би ще один рядок.
         $shiftsEntity = $this->entityFactory->get(CashierShiftsEntity::class);
         if ($shiftsEntity->count(['opened' => 1]) === 0) {
             $relatedReceiptId = $isReturn ? $this->findLastSaleReceiptId($orderId) : null;
-            return $this->saveReceiptToDatabase([], $orderId, $isReturn, null, $relatedReceiptId);
+            $placeholderId = $receiptId ?? $this->findEmptyReceiptId($orderId, $isReturn);
+
+            return $this->saveReceiptToDatabase([], $orderId, $isReturn, $placeholderId, $relatedReceiptId);
         }
 
         $sendEmail = false;
@@ -176,34 +183,6 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
             return $this->saveReceiptToDatabase($response, $orderId, $isReturn, $receiptId, $relatedReceiptId);
         }
         return $response;
-    }
-
-    /**
-     * Повторна відправка чеків, що збереглись у БД без receipt_id (наприклад, зміна була закрита).
-     *
-     * НЕ на розкладі й без свого маршруту — свідомо. Вибірка не має ні межі
-     * розміру, ні вікна за датою, а порожній receipt_id накопичився за роки й
-     * повторюється по кілька разів на одне замовлення. Один запуск означає
-     * стільки чеків у податкову, скільки таких рядків у базі, і скасувати їх
-     * не можна. Перш ніж вмикати: обмежити пачку, відсікти старе за датою і
-     * прибрати дублі по order_id.
-     */
-    public function checkEmptyReceipts()
-    {
-        $shiftsEntity = $this->entityFactory->get(CashierShiftsEntity::class);
-        if ($shiftsEntity->count(['opened' => 1]) === 0) {
-            return false;
-        }
-
-        $receiptsEntity = $this->entityFactory->get(FiscalReceiptsEntity::class);
-        $receipts = $receiptsEntity->order('id')->find(['receipt_id' => '']);
-        if (empty($receipts)) {
-            return false;
-        }
-
-        foreach ($receipts as $receipt) {
-            $this->createReceipt((int)$receipt->order_id, (bool)$receipt->is_return, (int)$receipt->id);
-        }
     }
 
     /**
@@ -414,6 +393,24 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
         }
 
         return null;
+    }
+
+    /**
+     * Запис без receipt_id, який уже чекає на відправку для цього замовлення.
+     *
+     * Продаж і повернення розділені: порожній запис повернення не можна
+     * віддавати під чек продажу.
+     */
+    private function findEmptyReceiptId(int $orderId, bool $isReturn): ?int
+    {
+        $receiptsEntity = $this->entityFactory->get(FiscalReceiptsEntity::class);
+        $existing = $receiptsEntity->findOne([
+            'order_id'   => $orderId,
+            'is_return'  => (int)$isReturn,
+            'receipt_id' => '',
+        ]);
+
+        return $existing ? (int)$existing->id : null;
     }
 
     /** Повертає receipt_id останнього чека продажу для замовлення (використовується у чеках повернення) */
