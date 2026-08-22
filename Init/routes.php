@@ -35,18 +35,4 @@ return [
             'method' => 'createReceipt',
         ],
     ],
-    'Sviat_Checkbox_cronShiftsCheck' => [
-        'slug' => 'cron/sviat/checkbox/checkShifts',
-        'params' => [
-            'controller' => __NAMESPACE__ . '\Controllers\FiscalReceiptCronController',
-            'method' => 'checkShifts',
-        ],
-    ],
-    'Sviat_Checkbox_cronReceiptsCheckEmpty' => [
-        'slug' => 'cron/sviat/checkbox/checkEmptyReceipts',
-        'params' => [
-            'controller' => __NAMESPACE__ . '\Controllers\FiscalReceiptCronController',
-            'method' => 'checkEmptyReceipts',
-        ],
-    ],
 ];

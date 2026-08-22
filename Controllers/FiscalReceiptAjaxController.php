@@ -7,6 +7,7 @@ namespace Okay\Modules\Sviat\Checkbox\Controllers;
 use Okay\Controllers\AbstractController;
 use Okay\Core\Managers;
 use Okay\Modules\Sviat\Checkbox\Security\AdminIdentity;
+use Okay\Modules\Sviat\Checkbox\Security\RequestOrigin;
 use Okay\Entities\ManagersEntity;
 use Okay\Modules\Sviat\Checkbox\Entities\CashierShiftsEntity;
 use Okay\Modules\Sviat\Checkbox\Entities\FiscalReceiptsEntity;
@@ -118,8 +119,12 @@ class FiscalReceiptAjaxController extends AbstractController
      * перевірки будь-хто міг відкрити чи закрити зміну і фіскалізувати чек на
      * довільне замовлення — операції, які йдуть у податкову.
      *
-     * Звідки береться логін менеджера, вирішує AdminIdentity: рушії
-     * зберігають бекендову сесію по-різному.
+     * Перевіряються дві різні речі. *Хто* — це AdminIdentity: рушії зберігають
+     * бекендову сесію по-різному. *Звідки* — RequestOrigin разом із вимогою
+     * POST: кука адмінки має SameSite=Lax, тож міжсайтовий POST її не несе, а
+     * top-level GET-навігація несе. Відкриття й закриття зміни параметрів не
+     * мають узагалі, тож між голою адресою і податковою стоїть лише ця пара
+     * перевірок.
      */
     private function isAllowed(
         AdminIdentity $adminIdentity,
@@ -127,6 +132,18 @@ class FiscalReceiptAjaxController extends AbstractController
         ManagersEntity $managersEntity
     ): bool
     {
+        if (!$this->request->method('post')) {
+            $this->response->setStatusCode(405);
+            $this->response->setContent(json_encode(['message' => 'Method Not Allowed']), RESPONSE_JSON);
+            return false;
+        }
+
+        if (!RequestOrigin::isFromThisSite()) {
+            $this->response->setStatusCode(403);
+            $this->response->setContent(json_encode(['message' => 'Forbidden']), RESPONSE_JSON);
+            return false;
+        }
+
         $adminLogin = $adminIdentity->login();
         if (empty($adminLogin)) {
             $this->response->setStatusCode(401);
