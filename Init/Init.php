@@ -184,15 +184,6 @@ class Init extends AbstractInit
                 ->overlap(false)
                 ->timeout(300)
         );
-        // Cron: повторна відправка чеків, що лягли в БД без receipt_id.
-        // Зсунуто відносно перевірки змін: обидві задачі ходять в Checkbox.
-        $this->registerSchedule(
-            (new Schedule([CheckboxHelper::class, 'checkEmptyReceipts']))
-                ->name('Resend fiscal receipts saved without receipt_id')
-                ->time('3,13,23,33,43,53 * * * *')
-                ->overlap(false)
-                ->timeout(300)
-        );
 
         $this->extendBackendMenu(
             'sviat__left_checkbox',
