@@ -94,11 +94,6 @@ class CheckboxHelper
         return $this->receiptsHelper->createReceipt($orderId, $isReturn, $receiptId);
     }
 
-    public function checkEmptyReceipts()
-    {
-        return $this->receiptsHelper->checkEmptyReceipts();
-    }
-
     /**
      * Cron-точка входу: перевіряє наявність модуля NovaPoshtaTracking і налаштування
      * sviat__checkbox__create_receipt_on_received перед запуском обробки.
