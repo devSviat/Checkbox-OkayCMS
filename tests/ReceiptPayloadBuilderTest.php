@@ -258,6 +258,40 @@ class ReceiptPayloadBuilderTest extends TestCase
     }
 
     // ------------------------------------------------------------------
+    // Сходження двох сум
+    // ------------------------------------------------------------------
+
+    /**
+     * Checkbox звіряє суму оплати із сумою позицій і відхиляє чек, у якому
+     * вони різні. Розходяться вони саме на округленні: ціна позиції — цілі
+     * копійки, і підсумок мусить збиратися з них, а не з вихідних цін.
+     */
+    /** @dataProvider roundingProvider */
+    #[DataProvider('roundingProvider')]
+    public function testPaymentValueEqualsTheSumOfLines(array $purchases, float $undiscounted, float $total): void
+    {
+        $payload = Builder::build($purchases, $undiscounted, $total);
+
+        $lines = 0;
+        foreach ($payload['goods'] as $good) {
+            $lines += $good['good']['price'] * intdiv($good['quantity'], 1000);
+        }
+
+        self::assertSame($lines, $payload['paymentValue']);
+    }
+
+    public static function roundingProvider(): array
+    {
+        return [
+            'знижка 1 грн на 3 шт по 100'   => [[self::purchase(100.0, 3)], 300.0, 299.0],
+            'знижка 1 грн на 7 шт по 10'    => [[self::purchase(10.0, 7)], 70.0, 69.0],
+            'знижка 33% на 6 шт по 49.90'   => [[self::purchase(49.90, 6)], 299.40, 200.60],
+            'дві позиції різної ціни'       => [[self::purchase(300.0), self::purchase(99.99)], 399.99, 350.0],
+            'три знаки в ціні, без знижки'  => [[self::purchase(149.991, 2)], 299.982, 299.982],
+        ];
+    }
+
+    // ------------------------------------------------------------------
     // Чек повернення
     // ------------------------------------------------------------------
 
