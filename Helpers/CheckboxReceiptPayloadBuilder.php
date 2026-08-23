@@ -38,8 +38,10 @@ final class CheckboxReceiptPayloadBuilder
             $discountPercent = (1 - ($totalPrice / $undiscountedTotal)) * 100;
         }
 
+        // Checkbox звіряє суму оплати із сумою позицій, тож накопичувати її
+        // можна лише з уже округлених рядків, а не з вихідних цін.
         $goods = [];
-        $totalSum = 0;
+        $paymentValue = 0;
 
         foreach ($purchases as $purchase) {
             $purchasePrice = is_numeric($purchase->price) ? (float)$purchase->price : 0.0;
@@ -51,7 +53,9 @@ final class CheckboxReceiptPayloadBuilder
                 $purchase->price = $purchasePrice;
             }
 
-            $totalSum += $purchasePrice * $purchaseAmount;
+            $priceKopiyky = self::toKopiyky($purchasePrice);
+            $paymentValue += $priceKopiyky * $purchaseAmount;
+
             $productName = $purchase->fullProductName
                 ?? ($purchase->product_name . (!empty($purchase->variant_name) ? (' - ' . $purchase->variant_name) : ''));
 
@@ -59,7 +63,7 @@ final class CheckboxReceiptPayloadBuilder
                 'good' => [
                     'code' => (string)$variantId,
                     'name' => $productName,
-                    'price' => self::toKopiyky($purchasePrice),
+                    'price' => $priceKopiyky,
                     'tax' => is_array($purchase->taxes ?? null) ? $purchase->taxes : []
                 ],
                 'quantity' => $purchaseAmount * 1000
@@ -70,7 +74,7 @@ final class CheckboxReceiptPayloadBuilder
             $goods[] = $goodItem;
         }
 
-        return ['goods' => $goods, 'paymentValue' => self::toKopiyky($totalSum)];
+        return ['goods' => $goods, 'paymentValue' => $paymentValue];
     }
 
     /**
