@@ -89,11 +89,11 @@ class FailureLoggingTest extends TestCase
 
     public function testWithoutALoggerNothingHappens(): void
     {
+        $this->expectNotToPerformAssertions();
+
         $helper = $this->apiHelper(null, ['message' => 'збій']);
 
         $this->logFailure($helper, 'receipt not fiscalised');
-
-        self::assertTrue(true, 'виклик без логера не має падати');
     }
 
     /**
