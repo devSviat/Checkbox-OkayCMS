@@ -95,8 +95,11 @@ class FiscalReceiptAjaxController extends AbstractController
 
         $response = $checkboxHelper->createReceipt($orderId, $isReturn);
 
-        if (is_array($response) && !empty($response['id'])) {
-            $receipt = $receiptsEntity->findOne(['receipt_id' => $response['id']]);
+        // `id` у відповіді хелпера — id рядка таблиці, а не чека в Checkbox.
+        // Порожній `receipt_id` — заготовка при закритій зміні: чека ще немає,
+        // і фронту його віддавати не можна.
+        if (is_array($response) && !empty($response['receipt_id'])) {
+            $receipt = $receiptsEntity->findOne(['id' => $response['id']]);
             if ($receipt) {
                 $receiptData = [
                     'receipt_id' => $receipt->receipt_id ?? '',
