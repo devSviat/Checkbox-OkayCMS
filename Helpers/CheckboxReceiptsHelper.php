@@ -72,6 +72,18 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
             return (object)['message' => $this->translations->getTranslation('sviat__checkbox__errors_find_purchases')];
         }
 
+        $paymentsEntity = $this->entityFactory->get(PaymentsEntity::class);
+        $paymentMethod = $paymentsEntity->findOne(['id' => $order->payment_method_id]);
+
+        // Перевірка йде до гілки закритої зміни: інакше замовлення, яке ніколи не
+        // поїде в Checkbox, лишало б по собі порожній запис, який потім ніхто не
+        // забере — createReceiptsForPaidOrders() відсіює його за тим самим полем.
+        if ($paymentMethod && !empty($paymentMethod->{Init::PAYMENT_SKIP_FIELD})) {
+            return (object)[
+                'message' => $this->translations->getTranslation('sviat__checkbox__payment_method_dont_send'),
+            ];
+        }
+
         // Зміна закрита — лишаємо запис без receipt_id; чек піде, коли зміну
         // відкриють і замовлення знову потрапить у createReceiptsForPaidOrders().
         //
@@ -137,13 +149,6 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
 
         $payload = CheckboxReceiptPayloadBuilder::build($purchases, $undiscountedPrice, $totalPrice, $isReturn);
         $goods = $payload['goods'];
-
-        $paymentsEntity = $this->entityFactory->get(PaymentsEntity::class);
-        $paymentMethod = $paymentsEntity->findOne(['id' => $order->payment_method_id]);
-
-        if ($paymentMethod && !empty($paymentMethod->{Init::PAYMENT_SKIP_FIELD})) {
-            return (object)['message' => 'Payment method is set to not send to Checkbox'];
-        }
 
         $paymentType = $paymentMethod->{Init::PAYMENT_TYPE_FIELD} ?? 'CASH';
         $payments = [[
@@ -400,11 +405,16 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
      *
      * Продаж і повернення розділені: порожній запис повернення не можна
      * віддавати під чек продажу.
+     *
+     * Порядок `id_desc` обов'язковий: замовлення може тягнути хвіст старих
+     * порожніх записів, і `createReceiptsForPaidOrders()` бере з нього
+     * найновіший. Дефолтний порядок Entity дав би найстаріший — два шляхи
+     * оновлювали б різні рядки того самого замовлення.
      */
     private function findEmptyReceiptId(int $orderId, bool $isReturn): ?int
     {
         $receiptsEntity = $this->entityFactory->get(FiscalReceiptsEntity::class);
-        $existing = $receiptsEntity->findOne([
+        $existing = $receiptsEntity->order('id_desc')->findOne([
             'order_id'   => $orderId,
             'is_return'  => (int)$isReturn,
             'receipt_id' => '',
