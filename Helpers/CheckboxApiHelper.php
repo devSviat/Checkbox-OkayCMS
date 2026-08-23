@@ -133,9 +133,10 @@ class CheckboxApiHelper
         curl_setopt($ch, CURLOPT_USERAGENT, $this->clientName);
         curl_setopt($ch, CURLOPT_TIMEOUT, $this->requestTimeout);
         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $this->requestTimeout);
-        if (strpos($this->apiBaseUrl, 'https://') !== false) {
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        }
+        // Цими ж запитами їдуть логін і пароль касира, Bearer-токен і
+        // ліцензійний ключ, а FOLLOWLOCATION понесе заголовки за редиректом.
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
 
         $headers = [
