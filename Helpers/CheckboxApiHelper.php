@@ -9,6 +9,7 @@ use Okay\Core\EntityFactory;
 use Okay\Core\ServiceLocator;
 use Okay\Core\Settings;
 use Okay\Modules\Sviat\Checkbox\Init\Init;
+use Psr\Log\LoggerInterface;
 
 /** Базовий клас для HTTP-запитів до Checkbox API */
 class CheckboxApiHelper
@@ -24,6 +25,7 @@ class CheckboxApiHelper
     protected Settings $settings;
     protected BackendTranslations $translations;
     protected EntityFactory $entityFactory;
+    protected ?LoggerInterface $logger = null;
     public array $errors = [];
 
     public function __construct()
@@ -32,6 +34,11 @@ class CheckboxApiHelper
         $this->settings = $serviceLocator->getService(Settings::class);
         $this->entityFactory = $serviceLocator->getService(EntityFactory::class);
         $this->translations = $serviceLocator->getService(BackendTranslations::class);
+        // Через hasService: модуль ставлять на різні збірки, і відсутність
+        // логера має лишати його робочим, а не класти фаталом.
+        $this->logger = $serviceLocator->hasService(LoggerInterface::class)
+            ? $serviceLocator->getService(LoggerInterface::class)
+            : null;
 
         $this->apiBaseUrl = "https://api.checkbox.in.ua/api/v1/";
 
@@ -62,12 +69,41 @@ class CheckboxApiHelper
         ];
         $response = $this->makeApiRequest($url, $params, $requestParams);
         $this->accessToken = $response['access_token'] ?? null;
+        // Перевірка на токен, а не на errors: getAccessToken() їх не чистить,
+        // тож попередній збій дав би хибний запис.
+        if (empty($this->accessToken)) {
+            $this->logFailure('authorisation failed');
+        }
         return $response;
     }
 
     protected function clearErrors(): void
     {
         $this->errors = [];
+    }
+
+    /**
+     * Збій фіскальної операції — у лог.
+     *
+     * У контекст іде лише message і http_code. errors['requestData'] нести не
+     * можна: там заголовки з Bearer-токеном і ліцензійним ключем, а в запиті
+     * токена — логін і пароль касира.
+     */
+    protected function logFailure(string $event, array $context = []): void
+    {
+        if ($this->logger === null) {
+            return;
+        }
+
+        // Текст приходить від сторони по мережі, а крон пише його кожні пʼять
+        // хвилин: без межі одна довга відповідь роздує файл.
+        $message = $this->errors['message'] ?? null;
+        $context['error'] = is_string($message) ? mb_substr($message, 0, 500) : 'unknown';
+        if (isset($this->errors['http_code'])) {
+            $context['http_code'] = (int)$this->errors['http_code'];
+        }
+
+        $this->logger->error('Sviat/Checkbox: ' . $event, $context);
     }
 
     /**

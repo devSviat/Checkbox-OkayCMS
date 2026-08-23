@@ -187,6 +187,14 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
         if (empty($this->errors)) {
             return $this->saveReceiptToDatabase($response, $orderId, $isReturn, $receiptId, $relatedReceiptId);
         }
+
+        // Крон нікому не звітує, а замовлення вже позначене оплаченим: без
+        // цього рядка невиставлений чек не лишає сліду ніде.
+        $this->logFailure('receipt not fiscalised', [
+            'order_id'  => $orderId,
+            'is_return' => $isReturn,
+        ]);
+
         return $response;
     }
 

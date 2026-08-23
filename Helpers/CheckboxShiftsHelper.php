@@ -151,11 +151,13 @@ class CheckboxShiftsHelper extends CheckboxApiHelper
 
         $response = $this->createShift();
         if (!empty($this->errors) || !is_array($response)) {
+            $this->logFailure('cashier shift not opened');
             return null;
         }
 
         $shiftId = isset($response['id']) ? (string)$response['id'] : null;
         if (!$shiftId) {
+            $this->logFailure('cashier shift opened without id');
             return null;
         }
 
@@ -170,7 +172,14 @@ class CheckboxShiftsHelper extends CheckboxApiHelper
             $status = isset($statusResponse['status']) ? strtoupper((string)$statusResponse['status']) : '';
         }
 
-        return $shiftsEntity->getActiveShift() ?: null;
+        // Без відкритої зміни жоден чек не піде, а нагорі це виглядає просто
+        // як «чека немає».
+        $activeShift = $shiftsEntity->getActiveShift();
+        if (!$activeShift) {
+            $this->logFailure('cashier shift did not reach OPENED', ['shift_id' => $shiftId]);
+        }
+
+        return $activeShift ?: null;
     }
 
     /**
