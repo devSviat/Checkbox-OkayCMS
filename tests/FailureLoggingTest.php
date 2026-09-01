@@ -147,6 +147,63 @@ class FailureLoggingTest extends TestCase
         self::assertSame('Каса недоступна', $logger->records[0]['context']['error']);
     }
 
+    /**
+     * Незаповнені облікові дані касира мусять лишати в логу саме «зміна не
+     * відкрилась». Захист від запиту без токена повертає сюди масив з message,
+     * а не false, — і без окремої перевірки код доходив би до гілки «відкрилась
+     * без id», тобто лог стверджував би, що зміна створилась.
+     */
+    public function testEmptyCredentialsAreLoggedAsShiftNotOpened(): void
+    {
+        $logger = $this->logger();
+
+        $shifts = new class extends CheckboxShiftsHelper {
+            public function __construct()
+            {
+                // Батьківський конструктор іде в ServiceLocator по налаштування.
+            }
+
+            /**
+             * Повторює ранній вихід CheckboxApiHelper::getAccessToken() при
+             * порожніх облікових даних.
+             */
+            public function getAccessToken()
+            {
+                $this->errors['message'] = 'Заповніть параметри модуля';
+
+                return ['message' => $this->errors['message']];
+            }
+        };
+
+        $entities = new class {
+            public function getActiveShift()
+            {
+                return false;
+            }
+        };
+
+        $factory = $this->createStub(EntityFactory::class);
+        $factory->method('get')->willReturnCallback(
+            function ($class) use ($entities) {
+                return $class === CashierShiftsEntity::class ? $entities : null;
+            }
+        );
+
+        Closure::bind(
+            function () use ($factory, $logger) {
+                $this->entityFactory = $factory;
+                $this->logger = $logger;
+            },
+            $shifts,
+            CheckboxApiHelper::class
+        )();
+
+        self::assertNull($shifts->openShiftIfNeeded());
+        self::assertCount(1, $logger->records);
+        self::assertSame('Sviat/Checkbox: cashier shift not opened', $logger->records[0]['message']);
+        self::assertSame('Заповніть параметри модуля', $logger->records[0]['context']['error']);
+    }
+
     // ── допоміжне ─────────────────────────────────────────────────────────
 
     /** @param array<string, mixed> $errors */

@@ -318,4 +318,45 @@ class ReceiptPayloadBuilderTest extends TestCase
         self::assertSame([], $payload['goods']);
         self::assertSame(0, $payload['paymentValue']);
     }
+
+    /**
+     * Назва в чеку мусить бути українською й непорожньою.
+     *
+     * Знімок назви в ok_purchases збережено мовою покупця — там є російські
+     * рядки. Він має бути останнім засобом, а не спрацьовувати щоразу, коли
+     * жива назва виявилась порожньою: порожня конкатенація дає рядок, а не
+     * null, тож оператор ?? її не ловить.
+     */
+    public function testEmptyLiveNameDoesNotReachTheReceipt(): void
+    {
+        $purchase = (object)[
+            'product_id' => 1, 'variant_id' => 1, 'amount' => 1,
+            'price' => 100.0, 'undiscounted_price' => 100.0,
+            'fullProductName' => '',
+            'product_name' => 'Стеклянная полка', 'variant_name' => '',
+        ];
+
+        $payload = Builder::build([$purchase], 100.0, 100.0, false);
+
+        self::assertSame(
+            'Стеклянная полка',
+            $payload['goods'][0]['good']['name'],
+            'порожня жива назва мусить поступитись знімку, а не потрапити в чек'
+        );
+    }
+
+    /** Непорожня жива назва завжди сильніша за знімок. */
+    public function testLiveNameWinsOverTheSnapshot(): void
+    {
+        $purchase = (object)[
+            'product_id' => 1, 'variant_id' => 1, 'amount' => 1,
+            'price' => 100.0, 'undiscounted_price' => 100.0,
+            'fullProductName' => 'Скляна полиця',
+            'product_name' => 'Стеклянная полка', 'variant_name' => '',
+        ];
+
+        $payload = Builder::build([$purchase], 100.0, 100.0, false);
+
+        self::assertSame('Скляна полиця', $payload['goods'][0]['good']['name']);
+    }
 }

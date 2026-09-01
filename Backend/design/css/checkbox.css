@@ -452,3 +452,141 @@
     background-color: #f4f4f5;
     color: #27272a;
 }
+/* Ланцюжок передплати */
+
+.sviat__checkbox_alert__next {
+    font-size: 12px;
+    margin-top: 6px;
+    font-weight: 500;
+}
+
+.sviat__checkbox_alert--info .sviat__checkbox_alert__next {
+    color: #1565c0;
+}
+
+.sviat__checkbox_alert--warning .sviat__checkbox_alert__next {
+    color: #cb6912;
+}
+
+.sviat__checkbox_tag--test {
+    background-color: #ede7f6;
+    color: #5e35b1 !important;
+}
+
+/* Режим каси видно до натискання, а не з тегів у списку чеків після нього. */
+.sviat__checkbox_test_notice {
+    /* Власний рядок: inline-block притискав до попередження сусідню кнопку. */
+    display: block;
+    width: fit-content;
+    padding: 4px 10px;
+    margin-bottom: 10px;
+    border-radius: 3px;
+    background-color: #ede7f6;
+    border-left: 3px solid #7e57c2;
+    color: #5e35b1;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+/* Шляхи «повна оплата» і «аванс» розділені, бо наслідки різні й незворотні. */
+.sviat__checkbox_path {
+    margin-bottom: 14px;
+    padding-left: 10px;
+    border-left: 2px solid #e0e0e0;
+}
+
+.sviat__checkbox_path__title {
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 2px;
+}
+
+.sviat__checkbox_path__hint {
+    font-size: 12px;
+    opacity: 0.75;
+    margin-bottom: 8px;
+    max-width: 520px;
+    line-height: 1.35;
+}
+
+.sviat__checkbox_prepayment_form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.sviat__checkbox_prepayment_form .fn-checkbox-advance-amount {
+    width: 150px;
+}
+
+.sviat__checkbox_prepayment_form .fn-checkbox-advance-source,
+.sviat__checkbox_prepayment_form .fn-checkbox-after-payment-source,
+.sviat__checkbox_prepayment_form .bootstrap-select {
+    /* Стеля ширини: без неї селект розтягується на всю картку, а поруч із ним
+       кнопка виглядає загубленою. */
+    width: auto !important;
+    min-width: 280px;
+    max-width: 460px;
+    flex: 0 1 auto;
+}
+
+/* Дії стоять стовпчиком, і без проміжку сусідні кнопки злипаються в одну
+   темну пляму — а вони запускають різні незворотні сценарії. */
+.sviat__checkbox_receipts_actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.sviat__checkbox_receipts_actions > * {
+    margin-bottom: 0;
+}
+
+/* Аванс — рідкісний сценарій: поля з'являються після кліку, а не займають
+   картку постійно. Кнопка лишається видимою й у згорнутому стані. */
+.sviat__checkbox_prepayment_form--collapsed .fn-checkbox-advance-amount,
+.sviat__checkbox_prepayment_form--collapsed .fn-checkbox-advance-source,
+.sviat__checkbox_prepayment_form--collapsed .bootstrap-select {
+    display: none !important;
+}
+
+/* Аванс — синій, а не ще один відтінок темного: дві сусідні кнопки запускають
+   різні незворотні сценарії, і плутати їх дорожче за строгість палітри. Синій,
+   а не червоний чи жовтий: дія штатна, а не ризикова. Той самий відтінок, що в
+   інформаційній плашці стану ланцюжка. */
+.btn_checkbox-advance {
+    color: #fff;
+    background-color: #3949ab;
+    border-color: #3949ab;
+}
+
+.btn_checkbox-advance:hover {
+    background: #303f9f;
+    border-color: #303f9f;
+}
+
+
+.sviat__checkbox_paths__buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+/* Оновлення стану нічого не фіскалізує — воно лише перепитує Checkbox. Тому
+   світле й неакцентне: темна заливка ставила б його в один ряд із кнопками,
+   що створюють документи. */
+.btn_checkbox-refresh {
+    margin-top: 8px;
+    color: #1565c0;
+    background-color: transparent;
+    border-color: #90caf9;
+}
+
+.btn_checkbox-refresh:hover {
+    color: #0d47a1;
+    background: #e3f2fd;
+    border-color: #64b5f6;
+}

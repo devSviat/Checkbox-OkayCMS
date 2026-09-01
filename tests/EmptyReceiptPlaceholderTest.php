@@ -8,6 +8,7 @@ use Okay\Core\EntityFactory;
 use Okay\Core\ServiceLocator;
 use Okay\Entities\OrdersEntity;
 use Okay\Entities\PaymentsEntity;
+use Okay\Entities\PurchasesEntity;
 use Okay\Helpers\OrdersHelper;
 use Okay\Modules\Sviat\Checkbox\Entities\CashierShiftsEntity;
 use Okay\Modules\Sviat\Checkbox\Entities\FiscalReceiptsEntity;
@@ -109,6 +110,12 @@ class EmptyReceiptPlaceholderTest extends TestCase
                 return $this;
             }
 
+            /** Перевірка «чи вже є чек продажу» читає весь набір чеків замовлення. */
+            public function find(array $filter = [])
+            {
+                return [];
+            }
+
             public function findOne(array $filter = [])
             {
                 return false;
@@ -153,6 +160,88 @@ class EmptyReceiptPlaceholderTest extends TestCase
         self::assertSame('sviat__checkbox__payment_method_dont_send', $this->requestedTranslation);
         self::assertFalse($receipts->written, 'порожній запис для PAYMENT_SKIP не має створюватись');
         self::assertFalse($shifts->asked, 'перевірка зміни зайва — рішення вже ухвалене');
+    }
+
+    /**
+     * Замовлення без позицій при закритій зміні не має лишати заготовку.
+     *
+     * Такий рядок уже ніхто не забере: createReceiptsForPaidOrders() відсіює
+     * замовлення без товарів, тож заготовка висіла б у таблиці назавжди.
+     */
+    public function testOrderWithoutPurchasesLeavesNoPlaceholder(): void
+    {
+        $shifts = new class {
+            public function count(array $filter = [])
+            {
+                return 0;
+            }
+        };
+
+        $receipts = new class {
+            public bool $written = false;
+
+            public function order($order = null, array $additionalData = [])
+            {
+                return $this;
+            }
+
+            /** Перевірка «чи вже є чек продажу» читає весь набір чеків замовлення. */
+            public function find(array $filter = [])
+            {
+                return [];
+            }
+
+            public function findOne(array $filter = [])
+            {
+                return false;
+            }
+
+            public function add($object)
+            {
+                $this->written = true;
+
+                return 1;
+            }
+        };
+
+        $orders = new class {
+            public function get($id)
+            {
+                return (object)['id' => 14666, 'payment_method_id' => 3];
+            }
+        };
+
+        $payments = new class {
+            public function findOne(array $filter = [])
+            {
+                return (object)['id' => 3, Init::PAYMENT_SKIP_FIELD => 0];
+            }
+        };
+
+        $purchases = new class {
+            public function count(array $filter = [])
+            {
+                return 0;
+            }
+        };
+
+        $ordersHelper = $this->createStub(OrdersHelper::class);
+        $ordersHelper->method('getOrderPurchasesList')->willReturn([]);
+        $this->replaceService(OrdersHelper::class, $ordersHelper);
+
+        $helper = $this->buildHelper([
+            OrdersEntity::class         => $orders,
+            PaymentsEntity::class       => $payments,
+            CashierShiftsEntity::class  => $shifts,
+            FiscalReceiptsEntity::class => $receipts,
+            PurchasesEntity::class      => $purchases,
+        ]);
+
+        $result = $helper->createReceipt(14666);
+
+        self::assertSame('переклад', $result->message);
+        self::assertSame('sviat__checkbox__errors_find_purchases', $this->requestedTranslation);
+        self::assertFalse($receipts->written, 'заготовка на замовлення без позицій висіла б назавжди');
     }
 
     /** @param array<string, object> $entities FQCN сутності → підставлений об'єкт */

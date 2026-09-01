@@ -35,4 +35,36 @@ return [
             'method' => 'createReceipt',
         ],
     ],
+    'Sviat_Checkbox_createPrepaymentReceipt' => [
+        'slug' => 'backend/sviat/checkbox/ajax/createPrepaymentReceipt',
+        'to_front' => true,
+        'params' => [
+            'controller' => __NAMESPACE__ . '\Controllers\FiscalReceiptAjaxController',
+            'method' => 'createPrepaymentReceipt',
+        ],
+    ],
+    'Sviat_Checkbox_createAfterPaymentReceipt' => [
+        'slug' => 'backend/sviat/checkbox/ajax/createAfterPaymentReceipt',
+        'to_front' => true,
+        'params' => [
+            'controller' => __NAMESPACE__ . '\Controllers\FiscalReceiptAjaxController',
+            'method' => 'createAfterPaymentReceipt',
+        ],
+    ],
+    'Sviat_Checkbox_refreshChainStatus' => [
+        'slug' => 'backend/sviat/checkbox/ajax/refreshChainStatus',
+        'to_front' => true,
+        'params' => [
+            'controller' => __NAMESPACE__ . '\Controllers\FiscalReceiptAjaxController',
+            'method' => 'refreshChainStatus',
+        ],
+    ],
+    'Sviat_Checkbox_returnChain' => [
+        'slug' => 'backend/sviat/checkbox/ajax/returnChain',
+        'to_front' => true,
+        'params' => [
+            'controller' => __NAMESPACE__ . '\Controllers\FiscalReceiptAjaxController',
+            'method' => 'returnChain',
+        ],
+    ],
 ];

@@ -25,7 +25,10 @@ class CheckboxShiftsHelper extends CheckboxApiHelper
         $this->clearErrors();
         if (empty($this->accessToken)) {
             $tokenResponse = $this->getAccessToken();
-            if (!empty($this->errors)) {
+            // Перевірка саме на токен: при незаповнених налаштуваннях касира
+            // getAccessToken() повертає повідомлення, не чіпаючи errors, — і без
+            // цієї умови сюди йшов би дарма кинутий запит у бойовий API.
+            if (!empty($this->errors) || empty($this->accessToken)) {
                 return $tokenResponse;
             }
         }
@@ -43,7 +46,10 @@ class CheckboxShiftsHelper extends CheckboxApiHelper
         $this->clearErrors();
         if (empty($this->accessToken)) {
             $tokenResponse = $this->getAccessToken();
-            if (!empty($this->errors)) {
+            // Перевірка саме на токен: при незаповнених налаштуваннях касира
+            // getAccessToken() повертає повідомлення, не чіпаючи errors, — і без
+            // цієї умови сюди йшов би дарма кинутий запит у бойовий API.
+            if (!empty($this->errors) || empty($this->accessToken)) {
                 return $tokenResponse;
             }
         }
@@ -97,7 +103,10 @@ class CheckboxShiftsHelper extends CheckboxApiHelper
         $this->clearErrors();
         if (empty($this->accessToken)) {
             $tokenResponse = $this->getAccessToken();
-            if (!empty($this->errors)) {
+            // Перевірка саме на токен: при незаповнених налаштуваннях касира
+            // getAccessToken() повертає повідомлення, не чіпаючи errors, — і без
+            // цієї умови сюди йшов би дарма кинутий запит у бойовий API.
+            if (!empty($this->errors) || empty($this->accessToken)) {
                 return $tokenResponse;
             }
         }
@@ -111,7 +120,10 @@ class CheckboxShiftsHelper extends CheckboxApiHelper
         $this->clearErrors();
         if (empty($this->accessToken)) {
             $tokenResponse = $this->getAccessToken();
-            if (!empty($this->errors)) {
+            // Перевірка саме на токен: при незаповнених налаштуваннях касира
+            // getAccessToken() повертає повідомлення, не чіпаючи errors, — і без
+            // цієї умови сюди йшов би дарма кинутий запит у бойовий API.
+            if (!empty($this->errors) || empty($this->accessToken)) {
                 return $tokenResponse;
             }
         }
@@ -196,7 +208,10 @@ class CheckboxShiftsHelper extends CheckboxApiHelper
         $this->clearErrors();
         if (empty($this->accessToken)) {
             $tokenResponse = $this->getAccessToken();
-            if (!empty($this->errors)) {
+            // Перевірка саме на токен: при незаповнених налаштуваннях касира
+            // getAccessToken() повертає повідомлення, не чіпаючи errors, — і без
+            // цієї умови сюди йшов би дарма кинутий запит у бойовий API.
+            if (!empty($this->errors) || empty($this->accessToken)) {
                 return $tokenResponse;
             }
         }

@@ -3,6 +3,7 @@
 namespace Okay\Modules\Sviat\Checkbox\Init;
 
 use Okay\Core\Database;
+use Okay\Core\EntityFactory;
 use Okay\Core\QueryFactory;
 use Okay\Core\ServiceLocator;
 use Okay\Core\Settings;
@@ -27,6 +28,8 @@ use Okay\Modules\Sviat\Checkbox\Entities\FiscalReceiptsEntity;
 
 class Init extends AbstractInit
 {
+    public const RECEIPTS_ORDER_INDEX = 'idx_order_receipt_type';
+
     public const PAYMENT_TYPE_FIELD  = 'sviat__checkbox__payment_type';
     public const PAYMENT_LABEL_FIELD = 'sviat__checkbox__payment_label';
     public const PAYMENT_SKIP_FIELD  = 'sviat__checkbox__payment_skip';
@@ -52,11 +55,21 @@ class Init extends AbstractInit
             (new EntityField('order_id'))->setTypeInt(11, false),
             (new EntityField('receipt_id'))->setTypeVarchar(64, false),
             (new EntityField('related_receipt_id'))->setTypeVarchar(64, true),
+            (new EntityField('relation_id'))->setTypeVarchar(256, true),
+            (new EntityField('chain_status'))->setTypeVarchar(32, true),
+            (new EntityField('chain_paid_sum'))->setTypeInt(11, true),
+            (new EntityField('chain_total_sum'))->setTypeInt(11, true),
+            (new EntityField('receipt_type'))->setTypeVarchar(16, false)->setDefault(FiscalReceiptsEntity::TYPE_SALE),
             (new EntityField('is_return'))->setTypeInt(1, false)->setDefault('0'),
+            (new EntityField('is_test'))->setTypeTinyInt(1, false)->setDefault('0'),
             (new EntityField('sent'))->setTypeDatetime(true),
             (new EntityField('created_at'))->setTypeTimestamp(true, null),
             (new EntityField('updated_at'))->setTypeTimestamp(true, null),
         ]);
+
+        // Складений індекс EntityField не вміє, тож окремим кроком — але тим
+        // самим, що й в update_1_2_0(): свіжа установка має дати ту саму схему.
+        $this->addOrderReceiptTypeIndex();
 
         $this->migrateEntityField(
             PaymentsEntity::class,
@@ -65,7 +78,10 @@ class Init extends AbstractInit
         $this->migrateEntityField(
             PaymentsEntity::class,
             (new EntityField(self::PAYMENT_TYPE_FIELD))
-                ->setTypeEnum(['CASH', 'CARD', 'CASHLESS', 'OTHER'], false)
+                // OTHER Checkbox не приймає: у схемі API його немає взагалі, і чек
+                // падає з 422 мовчки. CARD там позначений DEPRECATED і тотожний
+                // CASHLESS, але лишається валідним, тож наявні налаштування не ламаємо.
+                ->setTypeEnum(['CASH', 'CARD', 'CASHLESS'], false)
                 ->setDefault('CASH')
         );
 
@@ -105,6 +121,125 @@ class Init extends AbstractInit
         }
     }
 
+    /** На встановленому модулі install() більше не виконується — колонки додає лише це. */
+    public function update_1_2_0(): void
+    {
+        foreach ($this->prepaymentChainFields() as $field) {
+            $this->migrateEntityField(FiscalReceiptsEntity::class, $field);
+        }
+
+        $this->migrateReturnsToReceiptType();
+        $this->addOrderReceiptTypeIndex();
+
+        // Дані переводимо ДО звуження enum, інакше наявні OTHER стануть
+        // недійсними. Саме звуження теж мусить бути тут: без нього оновлений
+        // магазин лишався б з OTHER у схемі, а свіжо встановлений — ні.
+        $this->migrateOtherPaymentTypeToCashless();
+        $this->migrateEntityField(
+            PaymentsEntity::class,
+            (new EntityField(self::PAYMENT_TYPE_FIELD))
+                ->setTypeEnum(['CASH', 'CARD', 'CASHLESS'], false)
+                ->setDefault('CASH')
+        );
+    }
+
+    /**
+     * OTHER у способі оплати означав мовчазний 422 від Checkbox і невиставлений
+     * чек. Значення прибрано з enum, тож наявні записи треба перевести до того,
+     * як звуження схеми зробить їх недійсними.
+     */
+    private function migrateOtherPaymentTypeToCashless(): void
+    {
+        $paymentsEntity = ServiceLocator::getInstance()
+            ->getService(EntityFactory::class)
+            ->get(PaymentsEntity::class);
+
+        foreach ($paymentsEntity->noLimit()->find([self::PAYMENT_TYPE_FIELD => 'OTHER']) as $method) {
+            $paymentsEntity->update((int)$method->id, [self::PAYMENT_TYPE_FIELD => 'CASHLESS']);
+        }
+    }
+
+    /**
+     * Індекс під вибірки «чеки замовлення».
+     *
+     * Таблиця жила лише з PRIMARY KEY, тож кожне питання про чеки замовлення
+     * було повним скануванням; ланцюжок додав ще одне таке питання на рендер
+     * картки. Порядок стовпців саме такий: order_id відсіює майже все, тип
+     * лише уточнює.
+     */
+    private function addOrderReceiptTypeIndex(): void
+    {
+        // Наявність перевіряємо окремо, а не через CREATE INDEX IF NOT EXISTS:
+        // той синтаксис знає MariaDB, а MySQL 5.7/8.0 його відхиляє. Помилки SQL
+        // тут ковтаються, тож на MySQL установка «пройшла» б, а індексу не було б.
+        if ($this->hasIndex(FiscalReceiptsEntity::getTable(), self::RECEIPTS_ORDER_INDEX)) {
+            return;
+        }
+
+        $sl = ServiceLocator::getInstance();
+        $sql = $sl->getService(QueryFactory::class)->newSqlQuery();
+        $sql->setStatement(
+            'CREATE INDEX ' . self::RECEIPTS_ORDER_INDEX
+            . ' ON ' . FiscalReceiptsEntity::getTable() . ' (order_id, receipt_type)'
+        );
+
+        $sl->getService(Database::class)->query($sql);
+    }
+
+    /** Чи є на таблиці індекс із такою назвою. Працює і на MySQL, і на MariaDB. */
+    private function hasIndex(string $table, string $indexName): bool
+    {
+        $sl = ServiceLocator::getInstance();
+        $sql = $sl->getService(QueryFactory::class)->newSqlQuery();
+        $sql->setStatement("SHOW INDEX FROM `{$table}` WHERE Key_name = '{$indexName}'");
+
+        if ($sl->getService(Database::class)->query($sql) !== true) {
+            return false;
+        }
+
+        return $sl->getService(Database::class)->results() !== [];
+    }
+
+    /**
+     * receipt_type дефолтиться в 'sale': усі наявні записи — це продажі або
+     * повернення, і саме такими їх мають бачити старі вибірки.
+     *
+     * @return EntityField[]
+     */
+    private function prepaymentChainFields(): array
+    {
+        return [
+            (new EntityField('relation_id'))->setTypeVarchar(256, true),
+            (new EntityField('chain_status'))->setTypeVarchar(32, true),
+            (new EntityField('chain_paid_sum'))->setTypeInt(11, true),
+            (new EntityField('chain_total_sum'))->setTypeInt(11, true),
+            (new EntityField('receipt_type'))->setTypeVarchar(16, false)->setDefault(FiscalReceiptsEntity::TYPE_SALE),
+            (new EntityField('is_test'))->setTypeTinyInt(1, false)->setDefault('0'),
+        ];
+    }
+
+    /**
+     * Наявні записи повернень мусять отримати свій тип, інакше вибірки за
+     * receipt_type їх не побачать. Через Entity, а не сирим SQL — noLimit() тут
+     * про повноту вибірки, а не про типовий ліміт у 100 записів.
+     */
+    private function migrateReturnsToReceiptType(): void
+    {
+        /** @var FiscalReceiptsEntity $fiscalReceiptsEntity */
+        $fiscalReceiptsEntity = ServiceLocator::getInstance()->getService(EntityFactory::class)
+            ->get(FiscalReceiptsEntity::class);
+
+        $returns = $fiscalReceiptsEntity->noLimit()->find(['is_return' => 1]);
+        if (empty($returns)) {
+            return;
+        }
+
+        $fiscalReceiptsEntity->update(
+            array_column($returns, 'id'),
+            ['receipt_type' => FiscalReceiptsEntity::TYPE_RETURN]
+        );
+    }
+
     public function init()
     {
         $this->addPermission('sviat__checkbox');
@@ -126,6 +261,9 @@ class Init extends AbstractInit
         $this->addBackendBlock('product_relations', 'fiscal_receipt_product_taxes.tpl');
         $this->addBackendBlock('orders_list_name', 'fiscal_receipt_order_last_receipt.tpl');
         $this->addBackendBlock('order_custom_block', 'fiscal_receipt_order_block.tpl');
+        // Форма накладної не знає про аванс: там одне поле задає і страхову
+        // вартість, і суму до сплати при отриманні.
+        $this->addBackendBlock('novaposhta_document_payment', 'fiscal_receipt_np_advance_notice.tpl');
 
         $this->registerQueueExtension(
             ['class' => BackendOrdersHelper::class, 'method' => 'changeStatus'],

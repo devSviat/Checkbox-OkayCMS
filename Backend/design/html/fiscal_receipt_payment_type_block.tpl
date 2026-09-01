@@ -9,7 +9,6 @@
                             <select name="sviat__checkbox__payment_type" class="selectpicker form-control">
                                 <option value="CASHLESS"{if $payment_method->sviat__checkbox__payment_type == 'CASHLESS'} selected{/if}>{$btr->sviat__checkbox__type_cashless|escape}</option>
                                 <option value="CASH"{if $payment_method->sviat__checkbox__payment_type == 'CASH'} selected{/if}>{$btr->sviat__checkbox__type_cash|escape}</option>
-                                <option value="OTHER"{if $payment_method->sviat__checkbox__payment_type == 'OTHER'} selected{/if}>Інше</option>
                             </select>
                         </div>
                     </div>

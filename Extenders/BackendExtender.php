@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Okay\Modules\Sviat\Checkbox\Extenders;
 
+use Okay\Core\BackendTranslations;
 use Okay\Core\Design;
 use Okay\Core\EntityFactory;
 use Okay\Core\Modules\Extender\ExtensionInterface;
@@ -15,6 +16,8 @@ use Okay\Modules\Sviat\Checkbox\Entities\FiscalReceiptsEntity;
 use Okay\Modules\Sviat\Checkbox\Entities\CashierShiftsEntity;
 use Okay\Modules\Sviat\Checkbox\Entities\TaxGroupsEntity;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxHelper;
+use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxReceiptSet;
+use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxPaymentForm;
 use Okay\Modules\Sviat\Checkbox\Init\Init;
 
 /** Хуки адмін-панелі: чеки замовлень, зміни, податки, способи оплати */
@@ -25,19 +28,22 @@ class BackendExtender implements ExtensionInterface
     private Settings $settings;
     private EntityFactory $entityFactory;
     private CheckboxHelper $checkboxHelper;
+    private BackendTranslations $backendTranslations;
 
     public function __construct(
         Design $design,
         Request $request,
         Settings $settings,
         EntityFactory $entityFactory,
-        CheckboxHelper $checkboxHelper
+        CheckboxHelper $checkboxHelper,
+        BackendTranslations $backendTranslations
     ) {
         $this->design = $design;
         $this->request = $request;
         $this->settings = $settings;
         $this->entityFactory = $entityFactory;
         $this->checkboxHelper = $checkboxHelper;
+        $this->backendTranslations = $backendTranslations;
     }
 
     /**
@@ -80,17 +86,141 @@ class BackendExtender implements ExtensionInterface
         }
 
         $receiptsEntity = $this->entityFactory->get(FiscalReceiptsEntity::class);
-        $this->design->assign('orderReceipts', $receiptsEntity->find(['order_id' => $order->id]));
-        $this->design->assign('emptyOrderReceiptsCount', $receiptsEntity->count(['receipt_id' => '', 'order_id' => $order->id]));
+        $orderReceiptRows = $receiptsEntity->find(['order_id' => $order->id]);
+        $this->design->assign('orderReceipts', $orderReceiptRows);
+        // Рахуються лише заготовки продажу й повернення: намір ланцюжка теж має
+        // порожній receipt_id, але це попередження ховає всі дії на картці, і
+        // намір потрапив би сюди саме тоді, коли дії найпотрібніші.
+        $this->design->assign('emptyOrderReceiptsCount', CheckboxReceiptSet::countUnfinished($orderReceiptRows));
 
         $paymentsEntity = $this->entityFactory->get(PaymentsEntity::class);
         $orderPaymentMethod = !empty($order->payment_method_id)
             ? $paymentsEntity->findOne(['id' => $order->payment_method_id])
             : null;
 
+        $dontSend = $orderPaymentMethod && !empty($orderPaymentMethod->{Init::PAYMENT_SKIP_FIELD});
+        $this->design->assign('orderCheckboxDontSend', $dontSend);
+
+        // Стан читається зі збереженого рядка, а не рахується з наших чеків: чек
+        // передплати й чек післяплати повертаються з однаковим type, тож
+        // відрізнити їх локально неможливо — джерелом лишається Checkbox, лише
+        // опитаний у момент дії, а не на рендері.
+        $chain = $this->checkboxHelper->orderChainStatus((int)$order->id);
+        $this->design->assign('checkboxChain', $chain);
+
+        $chainStatus = $chain === null ? null : (string)$chain['pre_payment_status'];
+
+        // Тип фільтрується в PHP, а не в запиті: до виконання міграції колонки
+        // receipt_type ще немає, і вибірка з фільтром по ній мовчки порожня.
+        // Кнопки питають «чи є що повертати», а не «чи фіскалізували колись»:
+        // після повного повернення кнопка повернення мусить зникнути, інакше
+        // другий чек повернення на той самий продаж робиться одним кліком.
+        // Автоматика питає інше й користується hasSaleReceipt().
+        $hasSaleReceipt = CheckboxReceiptSet::hasUncoveredSaleReceipt($orderReceiptRows);
+
+        // Стан невідомий (Checkbox не відповів) гасить усі кнопки: діяти наосліп
+        // на замовленні з ланцюжком дорожче, ніж почекати. Шаблон мусить сказати
+        // менеджеру, чому кнопок немає, — інакше це виглядає як поламана сторінка.
+        $chainIsCancelled = in_array($chainStatus, ['CANCELLED', 'PARTIAL_CANCELLED'], true);
+        // Скасований ланцюжок повертає замовлення до звичайного шляху: сервер
+        // (createReceipt()) дозволяє продаж саме в цьому стані, і кнопка мусить
+        // це показати — інакше менеджер лишається без жодного виходу.
+        $chainBlocksSale = $chainStatus !== null && !$chainIsCancelled;
+
+        // «Не відправляти чек» — це про спосіб оплати замовлення, тобто про те,
+        // як надійде основна сума. Аванс може прийти зовсім іншим шляхом, і
+        // менеджер називає його явно, тож прапорець ланцюжка не стосується:
+        // ані створення, ані закриття. Він гасить лише чеки, що спираються на
+        // сам спосіб оплати — продаж і повернення.
+        $this->design->assign('checkboxActions', [
+            'prepayment'   => !$chainBlocksSale && !$chainIsCancelled && !$hasSaleReceipt,
+            'afterPayment' => $chainStatus === 'PARTIAL_PAID',
+            'returnChain'  => in_array($chainStatus, ['PARTIAL_PAID', 'FULL_PAID'], true),
+            'sale'         => !$dontSend && !$chainBlocksSale && !$hasSaleReceipt,
+            'return'       => !$dontSend && !$chainBlocksSale && $hasSaleReceipt,
+        ]);
+        // Джерела віддаємо готовими: назва для людини, і — головне — мітка,
+        // яка реально надрукується в рядку 19 чека. Без неї менеджер обирає
+        // наосліп і бачить фіскальний наслідок лише постфактум.
+        // Ключі перекладів — літерали, а не конкатенація: TranslationKeysTest
+        // збирає їх грепом, і динамічний ключ знешкоджує саме ту перевірку,
+        // заради якої тест існує.
+        $sourceLabels = [
+            CheckboxPaymentForm::SOURCE_BANK_ACCOUNT => $this->backendTranslations->getTranslation('sviat__checkbox__source_bank_account'),
+            CheckboxPaymentForm::SOURCE_CARD         => $this->backendTranslations->getTranslation('sviat__checkbox__source_card'),
+            CheckboxPaymentForm::SOURCE_NOVAPAY      => $this->backendTranslations->getTranslation('sviat__checkbox__source_novapay'),
+            CheckboxPaymentForm::SOURCE_CASH         => $this->backendTranslations->getTranslation('sviat__checkbox__source_cash'),
+        ];
+
+        $sources = [];
+        foreach (CheckboxPaymentForm::sources() as $source) {
+            $sources[] = [
+                'key'          => $source,
+                'label'        => $sourceLabels[$source] ?? $source,
+                'receiptLabel' => CheckboxPaymentForm::receiptLabel($source),
+            ];
+        }
+        $this->design->assign('checkboxSources', $sources);
+
+        // Технічний статус з API — не текст для людини. Поруч із ним іде рядок
+        // «що робити далі»: без нього менеджер бачить стан, але не дію.
+        $statusTexts = [
+            'PARTIAL_PAID'      => $this->backendTranslations->getTranslation('sviat__checkbox__chain_status_partial_paid'),
+            'FULL_PAID'         => $this->backendTranslations->getTranslation('sviat__checkbox__chain_status_full_paid'),
+            'CANCELLED'         => $this->backendTranslations->getTranslation('sviat__checkbox__chain_status_cancelled'),
+            'PARTIAL_CANCELLED' => $this->backendTranslations->getTranslation('sviat__checkbox__chain_status_partial_cancelled'),
+            'unknown'           => $this->backendTranslations->getTranslation('sviat__checkbox__chain_status_unknown'),
+        ];
+        $nextSteps = [
+            'PARTIAL_PAID'      => $this->backendTranslations->getTranslation('sviat__checkbox__chain_next_partial_paid'),
+            'FULL_PAID'         => $this->backendTranslations->getTranslation('sviat__checkbox__chain_next_full_paid'),
+            'CANCELLED'         => $this->backendTranslations->getTranslation('sviat__checkbox__chain_next_cancelled'),
+            'PARTIAL_CANCELLED' => $this->backendTranslations->getTranslation('sviat__checkbox__chain_next_cancelled'),
+            'unknown'           => $this->backendTranslations->getTranslation('sviat__checkbox__chain_next_unknown'),
+        ];
+
+        // Невідомий статус із API краще показати як є, ніж порожнім місцем.
         $this->design->assign(
-            'orderCheckboxDontSend',
-            $orderPaymentMethod && !empty($orderPaymentMethod->{Init::PAYMENT_SKIP_FIELD})
+            'checkboxChainStatusText',
+            $chainStatus === null ? '' : ($statusTexts[$chainStatus] ?? $chainStatus)
+        );
+        $this->design->assign(
+            'checkboxChainNextStep',
+            $chainStatus === null ? '' : ($nextSteps[$chainStatus] ?? '')
+        );
+
+        // Тестова й бойова каси відрізняються лише обліковими даними, тож
+        // менеджер має бачити режим ДО натискання, а не в списку чеків після.
+        $this->design->assign('checkboxChainIsCancelled', $chainIsCancelled);
+
+        // Скільки лишилось узяти з клієнта при отриманні. Ім'я навмисне
+        // нейтральне: форма накладної підставляє це значення, не знаючи ні про
+        // Checkbox, ні про ланцюжок передплати.
+        $this->design->assign(
+            'orderAmountDueOnPickup',
+            ($chain !== null && $chainStatus === 'PARTIAL_PAID' && !empty($chain['left_to_pay']))
+                ? round((int)$chain['left_to_pay'] / 100, 2)
+                : null
+        );
+
+        // Тестова й бойова каси відрізняються лише обліковими даними касира, і
+        // з налаштувань режим не видно. Єдиний чесний сигнал — ознака, яку
+        // Checkbox повернув на останньому виданому чеку. Вона запізнюється на
+        // один чек після зміни облікових даних, але не вгадує.
+        $isTestCashier = false;
+        foreach ($receiptsEntity->order('id_desc')->find(['page' => 1, 'limit' => 20]) as $recent) {
+            if (!empty($recent->receipt_id)) {
+                $isTestCashier = !empty($recent->is_test);
+                break;
+            }
+        }
+        $this->design->assign('checkboxIsTestCashier', $isTestCashier);
+
+        // Рішення R4: джерело коштів для кнопки післяплати рахує PHP. Шаблон його
+        // не вгадує — помилка тут стала б хибним рядком 19 у фіскальному чеку.
+        $this->design->assign(
+            'checkboxAfterPaymentSource',
+            $this->checkboxHelper->orderPaymentSource((int)$order->id)
         );
     }
 
@@ -199,17 +329,13 @@ class BackendExtender implements ExtensionInterface
         // Перевіряємо існування саме чека продажу з receipt_id, а не "тип останнього чека":
         // після створення чека повернення останній чек має is_return=1 і колишня логіка
         // помилково запускала повторне виставлення чека продажу.
+        // Тип фільтрується в PHP, а не в запиті: до виконання міграції колонки
+        // receipt_type ще немає, вибірка з фільтром по ній мовчки порожня, і це
+        // прочиталось би як «чека продажу немає» — тобто дубль чека.
         $receiptsEntity = $this->entityFactory->get(FiscalReceiptsEntity::class);
-        $saleReceipts = $receiptsEntity->find(['order_id' => $order->id, 'is_return' => 0]);
-        $hasSaleReceipt = false;
-        foreach ($saleReceipts as $saleReceipt) {
-            if (!empty($saleReceipt->receipt_id)) {
-                $hasSaleReceipt = true;
-                break;
-            }
-        }
-        if (!$hasSaleReceipt) {
-            $this->checkboxHelper->createReceipt((int)$order->id, false, null);
+        $saleReceipts = $receiptsEntity->find(['order_id' => $order->id]);
+        if (!CheckboxReceiptSet::hasSaleReceipt($saleReceipts)) {
+            $this->checkboxHelper->fiscaliseOrder((int)$order->id);
         }
     }
 
@@ -256,10 +382,14 @@ class BackendExtender implements ExtensionInterface
         // помилково запускала повторне виставлення чека продажу.
         $receiptsEntity = $this->entityFactory->get(FiscalReceiptsEntity::class);
         $receipts = $receiptsEntity->find(['order_id' => array_keys($ordersToProcess)]);
-        $hasSaleReceiptMap = [];
+        $receiptsByOrder = [];
         foreach ($receipts as $receipt) {
-            if (empty($receipt->is_return) && !empty($receipt->receipt_id)) {
-                $hasSaleReceiptMap[(int)$receipt->order_id] = true;
+            $receiptsByOrder[(int)$receipt->order_id][] = $receipt;
+        }
+        $hasSaleReceiptMap = [];
+        foreach ($receiptsByOrder as $receiptOrderId => $orderReceipts) {
+            if (CheckboxReceiptSet::hasSaleReceipt($orderReceipts)) {
+                $hasSaleReceiptMap[$receiptOrderId] = true;
             }
         }
 
@@ -271,7 +401,7 @@ class BackendExtender implements ExtensionInterface
             }
             if (empty($hasSaleReceiptMap[(int)$order->id])) {
                 try {
-                    $this->checkboxHelper->createReceipt((int)$order->id, false, null);
+                    $this->checkboxHelper->fiscaliseOrder((int)$order->id);
                 } catch (\Exception $e) {
                     continue;
                 }

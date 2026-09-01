@@ -55,9 +55,11 @@ class CheckboxApiHelper
     public function getAccessToken()
     {
         if (empty($this->cashierLogin) || empty($this->cashierPassword) || empty($this->licenseKey)) {
-            return [
-                'message' => $this->translations->getTranslation('sviat__checkbox__errors_empty_params')
-            ];
+            // Причина мусить лягти і в errors: викликачі розрізняють збій саме за
+            // ними, а без запису невдача виглядала б як успішна операція.
+            $this->errors['message'] = $this->translations->getTranslation('sviat__checkbox__errors_empty_params');
+
+            return ['message' => $this->errors['message']];
         }
         $url = 'cashier/signin';
         $params = [
