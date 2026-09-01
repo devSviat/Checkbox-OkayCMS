@@ -17,17 +17,20 @@ class CheckboxHelper
     private CheckboxApiHelper $apiHelper;
     private CheckboxShiftsHelper $shiftsHelper;
     private CheckboxReceiptsHelper $receiptsHelper;
+    private CheckboxPrepaymentHelper $prepaymentHelper;
     private Settings $settings;
     private Modules $modules;
 
     public function __construct(
         CheckboxApiHelper $apiHelper,
         CheckboxShiftsHelper $shiftsHelper,
-        CheckboxReceiptsHelper $receiptsHelper
+        CheckboxReceiptsHelper $receiptsHelper,
+        CheckboxPrepaymentHelper $prepaymentHelper
     ) {
         $this->apiHelper = $apiHelper;
         $this->shiftsHelper = $shiftsHelper;
         $this->receiptsHelper = $receiptsHelper;
+        $this->prepaymentHelper = $prepaymentHelper;
 
         $serviceLocator = ServiceLocator::getInstance();
         $this->settings = $serviceLocator->getService(Settings::class);
@@ -36,6 +39,7 @@ class CheckboxHelper
         // Поділяємо один токен і стан помилок між усіма хелперами
         $this->shiftsHelper->syncWithHelper($this->apiHelper);
         $this->receiptsHelper->syncWithHelper($this->apiHelper);
+        $this->prepaymentHelper->syncWithHelper($this->apiHelper);
     }
 
     /** @return array|false */
@@ -112,5 +116,46 @@ class CheckboxHelper
     public function createReceiptsForPaidOrders(array $ids, int $status)
     {
         return $this->receiptsHelper->createReceiptsForPaidOrders($ids, $status);
+    }
+
+    /** @return array|object|null */
+    public function createPrepaymentReceipt(int $orderId, int $advanceKopiyky, string $source)
+    {
+        return $this->receiptsHelper->createPrepaymentReceipt($orderId, $advanceKopiyky, $source);
+    }
+
+    /** @return array|object|null */
+    public function createAfterPaymentReceipt(int $orderId, ?int $amountKopiyky, string $source, ?string $label = null)
+    {
+        return $this->receiptsHelper->createAfterPaymentReceipt($orderId, $amountKopiyky, $source, $label);
+    }
+
+    /** Джерело для кнопки післяплати рахує PHP, не шаблон. */
+    public function orderPaymentSource(int $orderId): string
+    {
+        return $this->receiptsHelper->orderPaymentSource($orderId);
+    }
+
+    /** @return array|object|null */
+    public function returnOrderChain(int $orderId)
+    {
+        return $this->receiptsHelper->returnOrderChain($orderId);
+    }
+
+    public function orderChainStatus(int $orderId): ?array
+    {
+        return $this->receiptsHelper->orderChainStatus($orderId);
+    }
+
+    /** Питає Checkbox про справжній стан ланцюжка. Єдиний шлях у мережу поза дією з чеком. */
+    public function refreshOrderChainStatus(int $orderId): ?array
+    {
+        return $this->receiptsHelper->refreshOrderChainStatus($orderId);
+    }
+
+    /** @return array|object|null */
+    public function fiscaliseOrder(int $orderId, ?int $emptyReceiptId = null)
+    {
+        return $this->receiptsHelper->fiscaliseOrder($orderId, $emptyReceiptId);
     }
 }

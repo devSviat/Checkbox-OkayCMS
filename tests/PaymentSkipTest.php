@@ -12,11 +12,13 @@ use Okay\Modules\Sviat\Checkbox\Entities\CashierShiftsEntity;
 use Okay\Modules\Sviat\Checkbox\Entities\FiscalReceiptsEntity;
 use Okay\Modules\Sviat\Checkbox\Extenders\BackendExtender;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxHelper;
+use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxPrepaymentHelper;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxReceiptsHelper;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxShiftsHelper;
 use Okay\Modules\Sviat\Checkbox\Init\Init;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
+use ReflectionProperty;
 
 /**
  * Спосіб оплати, позначений «не відправляти до Checkbox», не має давати чека
@@ -254,6 +256,16 @@ class PaymentSkipTest extends TestCase
             CheckboxReceiptsHelper::class
         )();
 
+        // fiscaliseOrder() (через createReceiptsForPaidOrders()) читає ланцюжок
+        // передплати цього хелпера — без заглушки типізована властивість без
+        // конструктора впаде на "must not be accessed before initialization".
+        $prepayment = (new ReflectionClass(CheckboxPrepaymentHelper::class))->newInstanceWithoutConstructor();
+        $property = new ReflectionProperty(CheckboxReceiptsHelper::class, 'prepaymentHelper');
+        if (PHP_VERSION_ID < 80100) {
+            $property->setAccessible(true);
+        }
+        $property->setValue($helper, $prepayment);
+
         return $helper;
     }
 
@@ -263,8 +275,10 @@ class PaymentSkipTest extends TestCase
      */
     private function extender(array &$sent, array $entities): BackendExtender
     {
+        // updateOrderStatus()/changeStatus() тепер ідуть через fiscaliseOrder() —
+        // єдину точку диспетчеризації, а не напряму через createReceipt().
         $checkbox = $this->createStub(CheckboxHelper::class);
-        $checkbox->method('createReceipt')->willReturnCallback(
+        $checkbox->method('fiscaliseOrder')->willReturnCallback(
             function ($orderId) use (&$sent) {
                 $sent[] = $orderId;
 

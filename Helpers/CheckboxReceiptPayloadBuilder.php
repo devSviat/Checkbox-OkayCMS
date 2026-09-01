@@ -56,8 +56,14 @@ final class CheckboxReceiptPayloadBuilder
             $priceKopiyky = self::toKopiyky($purchasePrice);
             $paymentValue += $priceKopiyky * $purchaseAmount;
 
-            $productName = $purchase->fullProductName
-                ?? ($purchase->product_name . (!empty($purchase->variant_name) ? (' - ' . $purchase->variant_name) : ''));
+            // Перевірка на порожнечу, а не лише на null: конкатенація назви з
+            // варіантом завжди дає рядок, тож ?? не спрацював би, і в чек пішла
+            // б порожня назва. Знімок з ok_purchases — останній засіб: він
+            // збережений мовою покупця, а чек мусить бути українською.
+            $liveName = isset($purchase->fullProductName) ? trim((string)$purchase->fullProductName) : '';
+            $productName = $liveName !== ''
+                ? $liveName
+                : ($purchase->product_name . (!empty($purchase->variant_name) ? (' - ' . $purchase->variant_name) : ''));
 
             $goodItem = [
                 'good' => [
