@@ -136,8 +136,21 @@ class FiscalReceiptAjaxController extends AbstractController
         }
 
         $orderId = $this->request->post('orderId', 'integer') ?: 0;
-        $amount  = (float)str_replace(',', '.', (string)$this->request->post('amount', 'string'));
         $source  = (string)$this->request->post('source', 'string');
+
+        // Сире значення, а не post(..., 'string'): фільтр рядка вирізає кому як
+        // «зайвий символ», тож «500,50» ставало «50050» — чек на 50 тисяч
+        // замість п'ятисот. Пробіл він лишає, і той обриває приведення до float:
+        // «2 000,50» ставало 2 грн. Нормалізуємо й перевіряємо формат самі.
+        $amount = self::parseAmount($this->request->post('amount'));
+        if ($amount === null) {
+            $this->response->setStatusCode(400);
+            $this->response->setContent(
+                json_encode(['message' => $translations->getTranslation('sviat__checkbox__errors_advance_not_a_number')], JSON_UNESCAPED_UNICODE),
+                RESPONSE_JSON
+            );
+            return;
+        }
 
         if (!CheckboxPaymentForm::isKnown($source)) {
             $this->response->setStatusCode(400);
@@ -168,7 +181,7 @@ class FiscalReceiptAjaxController extends AbstractController
 
         $orderId = $this->request->post('orderId', 'integer') ?: 0;
         $source  = (string)$this->request->post('source', 'string');
-        $rawAmount = (string)$this->request->post('amount', 'string');
+        $rawAmount = (string)$this->request->post('amount');
 
         if (!CheckboxPaymentForm::isKnown($source)) {
             $this->response->setStatusCode(400);
@@ -178,7 +191,16 @@ class FiscalReceiptAjaxController extends AbstractController
 
         $amount = null;
         if (trim($rawAmount) !== '') {
-            $amount = CheckboxReceiptPayloadBuilder::toKopiyky((float)str_replace(',', '.', $rawAmount));
+            $parsed = self::parseAmount($rawAmount);
+            if ($parsed === null) {
+                $this->response->setStatusCode(400);
+                $this->response->setContent(
+                    json_encode(['message' => $translations->getTranslation('sviat__checkbox__errors_advance_not_a_number')], JSON_UNESCAPED_UNICODE),
+                    RESPONSE_JSON
+                );
+                return;
+            }
+            $amount = CheckboxReceiptPayloadBuilder::toKopiyky($parsed);
         }
 
         // Мітку не передаємо: тут менеджер обирає джерело сам, і стандартна
@@ -186,6 +208,28 @@ class FiscalReceiptAjaxController extends AbstractController
         // автоматичного шляху, де мітку несе спосіб оплати замовлення).
         $response = $checkboxHelper->createAfterPaymentReceipt($orderId, $amount, $source);
         $this->response->setContent(json_encode($response, JSON_UNESCAPED_UNICODE), RESPONSE_JSON);
+    }
+
+    /**
+     * Сума у гривнях із рядка, або null якщо це не сума.
+     *
+     * Приймає і крапку, і кому, і пробіли-роздільники тисяч — бо саме так
+     * менеджер її й вводить. Усе інше відхиляє: мовчазне приведення до float
+     * дає нуль або обрізане число, а це фіскальний документ на суму, якої
+     * ніхто не вводив.
+     */
+    private static function parseAmount($raw): ?float
+    {
+        if (!is_scalar($raw)) {
+            return null;
+        }
+
+        $value = str_replace([' ', "\xc2\xa0", ','], ['', '', '.'], trim((string)$raw));
+        if ($value === '' || !preg_match('/^\d+(\.\d{1,2})?$/', $value)) {
+            return null;
+        }
+
+        return (float)$value;
     }
 
     /**

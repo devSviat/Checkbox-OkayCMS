@@ -209,6 +209,7 @@ class PaymentSkipTest extends TestCase
                 return $this;
             }
 
+            /** Перевірка «чи вже є чек продажу» читає весь набір чеків замовлення. */
             public function find(array $filter = [])
             {
                 return [];

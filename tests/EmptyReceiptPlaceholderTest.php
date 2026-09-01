@@ -110,6 +110,12 @@ class EmptyReceiptPlaceholderTest extends TestCase
                 return $this;
             }
 
+            /** Перевірка «чи вже є чек продажу» читає весь набір чеків замовлення. */
+            public function find(array $filter = [])
+            {
+                return [];
+            }
+
             public function findOne(array $filter = [])
             {
                 return false;
@@ -177,6 +183,12 @@ class EmptyReceiptPlaceholderTest extends TestCase
             public function order($order = null, array $additionalData = [])
             {
                 return $this;
+            }
+
+            /** Перевірка «чи вже є чек продажу» читає весь набір чеків замовлення. */
+            public function find(array $filter = [])
+            {
+                return [];
             }
 
             public function findOne(array $filter = [])

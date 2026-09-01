@@ -91,6 +91,20 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
             }
         }
 
+        // Чек продажу вже є — другий був би подвійною фіскалізацією. Автоматика
+        // цю перевірку робила в fiscaliseOrder(), а ручний шлях лишався без неї:
+        // два POST на ajax-ендпоінт (стара вкладка, другий менеджер, повторний
+        // клік) давали два фіскальні документи. На відміну від ланцюжка, у
+        // receipts/sell немає унікального ключа, який відхилив би дубль.
+        if (!$isReturn) {
+            $existing = $this->entityFactory->get(FiscalReceiptsEntity::class)->find(['order_id' => $orderId]);
+            if (CheckboxReceiptSet::hasSaleReceipt($existing)) {
+                return (object)[
+                    'message' => $this->translations->getTranslation('sviat__checkbox__errors_sale_exists'),
+                ];
+            }
+        }
+
         $ordersEntity = $this->entityFactory->get(OrdersEntity::class);
         $order = $ordersEntity->get($orderId);
         if (!$order) {
@@ -150,6 +164,9 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
         }
 
         $orderData = [
+            // Власний id чека: Checkbox радить його передавати, і він дає слід у
+            // їхніх логах. Для ланцюжка ту саму роль грає custom_relation_id.
+            'id' => $this->uuid4(),
             'cashier_name' => $context['cashierName'],
             'goods' => $context['goods'],
             'payments' => $payments,

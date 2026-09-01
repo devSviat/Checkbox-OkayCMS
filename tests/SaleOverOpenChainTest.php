@@ -4,6 +4,7 @@ namespace Modules\Sviat\Checkbox;
 
 use Closure;
 use Okay\Core\BackendTranslations;
+use Okay\Core\EntityFactory;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxApiHelper;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxChainDecision;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxReceiptsHelper;
@@ -92,6 +93,67 @@ class SaleOverOpenChainTest extends TestCase
         $this->expectExceptionMessage('entityFactory must not be accessed before initialization');
 
         $helper->createReceipt(22991, true);
+    }
+
+    /**
+     * Другий чек продажу на те саме замовлення — подвійна фіскалізація.
+     *
+     * Автоматика цю перевірку мала, ручний ajax-ендпоінт — ні: два POST зі
+     * старої вкладки чи від двох менеджерів давали два фіскальні документи.
+     * На відміну від ланцюжка, у receipts/sell немає унікального ключа, який
+     * відхилив би дубль на боці Checkbox.
+     */
+    public function testSecondSaleReceiptIsRefused(): void
+    {
+        $helper = new class extends CheckboxReceiptsHelper {
+            public function __construct()
+            {
+            }
+
+            /** @return array|false */
+            public function getAccessToken()
+            {
+                $this->accessToken = 'working-token';
+
+                return ['access_token' => 'working-token'];
+            }
+
+            public function orderChainStatus(int $orderId): ?array
+            {
+                return null;
+            }
+        };
+
+        $receipts = new class {
+            public function find(array $filter = [])
+            {
+                return [(object)['receipt_type' => 'sale', 'receipt_id' => 'already-issued']];
+            }
+        };
+
+        $factory = $this->createStub(EntityFactory::class);
+        $factory->method('get')->willReturn($receipts);
+
+        $translations = $this->createStub(BackendTranslations::class);
+        $translations->method('getTranslation')->willReturnCallback(
+            function ($key) {
+                return 'ПЕРЕКЛАД:' . $key;
+            }
+        );
+
+        Closure::bind(
+            function () use ($factory, $translations) {
+                $this->entityFactory = $factory;
+                $this->translations = $translations;
+            },
+            $helper,
+            CheckboxApiHelper::class
+        )();
+
+        $result = $helper->createReceipt(22991);
+
+        self::assertIsObject($result, 'другий чек продажу не відмовлено');
+        self::assertSame('ПЕРЕКЛАД:sviat__checkbox__errors_sale_exists', $result->message);
     }
 
     private function helperWithChain(?string $status): CheckboxReceiptsHelper
