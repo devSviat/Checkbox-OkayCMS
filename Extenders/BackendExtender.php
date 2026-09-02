@@ -130,7 +130,8 @@ class BackendExtender implements ExtensionInterface
             $chainStatus,
             $hasSaleReceipt,
             $hasUncoveredSale,
-            (bool)$dontSend
+            (bool)$dontSend,
+            (bool)$order->paid
         ));
         // Пункт списку — це рівно та мітка, яка надрукується в рядку 19 чека.
         // Окремої «назви для менеджера» немає навмисне: два різні написи на
