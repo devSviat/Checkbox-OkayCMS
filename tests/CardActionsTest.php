@@ -130,4 +130,49 @@ class CardActionsTest extends TestCase
         self::assertTrue($actions['afterPayment']);
         self::assertTrue($actions['returnChain']);
     }
+
+    /**
+     * Аванс — це сума, строго менша за товари. Якщо замовлення вже позначене
+     * оплаченим повністю, «частини, що лишилась» не існує, і кнопка веде в
+     * глухий кут — сервер (CheckboxPrepaymentRules) все одно її відхилить.
+     */
+    public function testFullyPaidOrderHidesPrepaymentButKeepsSale(): void
+    {
+        $actions = CheckboxCardActions::forOrder(null, false, false, false, true);
+
+        self::assertFalse($actions['prepayment'], 'нічого не лишилось довносити авансом');
+        self::assertTrue($actions['sale'], 'повний чек продажу лишається доступним');
+    }
+
+    /**
+     * Пояснення на картці мусить з'являтись лише тоді, коли аванс зняв саме
+     * прапорець оплати. Інакше воно суперечило б списку чеків над ним.
+     */
+    public function testPaidFlagIsNamedAsTheReasonOnlyWhenItIsTheReason(): void
+    {
+        $paid = CheckboxCardActions::forOrder(null, false, false, false, true);
+        self::assertTrue($paid['prepaymentHiddenByPaid']);
+
+        $bySale = CheckboxCardActions::forOrder(null, true, false, false, true);
+        self::assertFalse($bySale['prepaymentHiddenByPaid'], 'причина — чек продажу, і його видно у списку');
+
+        $byChain = CheckboxCardActions::forOrder('PARTIAL_PAID', false, false, false, true);
+        self::assertFalse($byChain['prepaymentHiddenByPaid'], 'причина — живий ланцюжок');
+
+        $offered = CheckboxCardActions::forOrder(null, false, false, false, false);
+        self::assertFalse($offered['prepaymentHiddenByPaid'], 'аванс і так пропонується');
+    }
+
+    /**
+     * «Не відправляти» ховає sale через спосіб оплати. Оплачене замовлення
+     * додатково ховає й аванс — разом не лишається жодної дії, і це коректно:
+     * фіскалізувати тут нема чим.
+     */
+    public function testFullyPaidOrderWithSkippedPaymentMethodOffersNothing(): void
+    {
+        $actions = CheckboxCardActions::forOrder(null, false, false, true, true);
+
+        self::assertFalse($actions['prepayment']);
+        self::assertFalse($actions['sale']);
+    }
 }

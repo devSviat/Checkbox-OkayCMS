@@ -226,6 +226,15 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
             return (object)['message' => $this->translations->getTranslation('sviat__checkbox__errors_sale_exists')];
         }
 
+        // Аванс — це частина суми, якої ще не отримано. На оплаченому замовленні
+        // такої частини немає: рівну сумі товарів Checkbox відхилить, а менша
+        // лишить ланцюжок відкритим на гроші, що вже надійшли. Замовлення без
+        // id тут не відсіюємо — про це скаже buildOrderContext() нижче.
+        $order = $this->entityFactory->get(OrdersEntity::class)->get($orderId);
+        if ($order && !empty($order->paid)) {
+            return (object)['message' => $this->translations->getTranslation('sviat__checkbox__errors_order_paid')];
+        }
+
         $context = $this->buildOrderContext($orderId, false);
         if (isset($context['message'])) {
             return (object)$context;

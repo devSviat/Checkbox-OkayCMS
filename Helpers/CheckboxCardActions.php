@@ -28,22 +28,31 @@ final class CheckboxCardActions
      * @param bool $hasSaleReceipt чи фіскалізували замовлення колись
      * @param bool $hasUncoveredSale чи лишився чек продажу, який нічим не повернуто
      * @param bool $dontSend спосіб оплати позначено «не відправляти чек»
-     * @return array{prepayment: bool, afterPayment: bool, returnChain: bool, sale: bool, return: bool}
+     * @param bool $orderPaid прапорець «Замовлення оплачено» — вся сума вже отримана
+     * @return array{prepayment: bool, prepaymentHiddenByPaid: bool, afterPayment: bool, returnChain: bool, sale: bool, return: bool}
      */
     public static function forOrder(
         ?string $chainStatus,
         bool $hasSaleReceipt,
         bool $hasUncoveredSale,
-        bool $dontSend
+        bool $dontSend,
+        bool $orderPaid = false
     ): array {
         // Живий ланцюжок тримає замовлення: доки він відкритий, ні аванс, ні
         // повний чек продажу поверх нього неможливі. Скасований — не тримає.
         $chainIsLive = $chainStatus !== null && !in_array($chainStatus, self::CLOSED_STATUSES, true);
 
         return [
-            // Після повернення ланцюжка аванс можна внести знову — сервер це
-            // дозволяє явно, і кнопка мусить це показувати.
-            'prepayment' => !$chainIsLive && !$hasSaleReceipt,
+            // Аванс — це завжди сума, строго менша за товари: сервер саме так
+            // і перевіряє (CheckboxPrepaymentRules::advanceIsValid). Якщо вся
+            // сума вже отримана, «частини, що лишилась» просто не існує, і
+            // кнопка веде в глухий кут — навіть коли ланцюжка ще не було.
+            'prepayment' => !$chainIsLive && !$hasSaleReceipt && !$orderPaid,
+
+            // Чому саме аванс сховано. Картка пояснює відсутність дії лише тоді,
+            // коли її зняв прапорець оплати, — при чеку продажу чи живому
+            // ланцюжку причину видно з самого списку чеків вище.
+            'prepaymentHiddenByPaid' => !$chainIsLive && !$hasSaleReceipt && $orderPaid,
 
             'afterPayment' => $chainStatus === 'PARTIAL_PAID',
             'returnChain'  => in_array($chainStatus, ['PARTIAL_PAID', 'FULL_PAID'], true),

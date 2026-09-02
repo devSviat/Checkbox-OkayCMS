@@ -147,6 +147,10 @@
                                         <div class="sviat__checkbox_alert__next">{$btr->sviat__checkbox__chain_open_despite_skip|escape}</div>
                                     {elseif $checkboxActions.prepayment}
                                         <div class="sviat__checkbox_alert__next">{$btr->sviat__checkbox__sale_hidden_by_skip|escape}</div>
+                                    {elseif $checkboxActions.prepaymentHiddenByPaid}
+                                        {* Інакше тут лишається саме попередження й порожнє місце
+                                           під ним: обидва шляхи закриті, і жоден не пояснено. *}
+                                        <div class="sviat__checkbox_alert__next">{$btr->sviat__checkbox__advance_hidden_by_paid|escape}</div>
                                     {/if}
                                 </div>
                             {/if}
