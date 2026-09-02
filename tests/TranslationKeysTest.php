@@ -51,6 +51,12 @@ class TranslationKeysTest extends TestCase
     }
 
     /**
+     * Ключі, які просить код і шаблони.
+     *
+     * Шаблони включно: `{$btr->невідомий_ключ}` не падає й не лишає сліду —
+     * друкується порожній рядок, тобто кнопка без напису або заголовок, якого
+     * немає. Побачити це можна лише очима, і лише на тій мові, яку відкрили.
+     *
      * @return array<string, string> ключ → файл, який його просить
      */
     private static function requestedKeys(): array
@@ -65,7 +71,24 @@ class TranslationKeysTest extends TestCase
             }
         }
 
+        foreach (self::moduleTemplates() as $file) {
+            $source = (string) file_get_contents($file);
+            if (preg_match_all('~\$btr->(sviat__[\w]+)~', $source, $matches)) {
+                foreach ($matches[1] as $key) {
+                    $keys[$key] = basename($file);
+                }
+            }
+        }
+
         return $keys;
+    }
+
+    /** @return list<string> */
+    private static function moduleTemplates(): array
+    {
+        $files = glob(self::moduleDir() . '/Backend/design/html/*.tpl');
+
+        return is_array($files) ? $files : [];
     }
 
     /** @return array<string, mixed> */

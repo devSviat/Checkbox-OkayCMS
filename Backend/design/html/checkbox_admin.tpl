@@ -62,6 +62,8 @@
 {*Головна форма сторінки*}
 <form method="post" enctype="multipart/form-data">
     <input type="hidden" name="session_id" value="{$smarty.session.id}">
+    {* Позначка «це саме наша форма»: чужий POST на цю адресу інакше стирає налаштування *}
+    <input type="hidden" name="sviat__checkbox__settings_form" value="1">
 
     {*Секція облікових даних касира*}
     <div class="row">
@@ -165,6 +167,129 @@
                                 </select>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {*Секція джерел коштів для авансу*}
+    <div class="row">
+        <div class="col-lg-12 col-md-12">
+            <div class="boxed fn_toggle_wrap">
+                <div class="heading_box">
+                    {$btr->sviat__checkbox__sources_settings|escape}
+                    <i class="fn_tooltips" title="{$btr->sviat__checkbox__sources_help_scenarios|escape}">
+                        {include file='svg_icon.tpl' svgId='icon_tooltips'}
+                    </i>
+                    <div class="toggle_arrow_wrap fn_toggle_card text-primary">
+                        <a class="btn-minimize" href="javascript:;">
+                            <i class="fa fn_icon_arrow fa-angle-down"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="toggle_body_wrap on fn_card">
+                    <div class="sviat__checkbox_sources">
+                        <p class="sviat__checkbox_sources__intro">
+                            {$btr->sviat__checkbox__sources_help_text|escape}
+                            <a href="https://wiki.checkbox.ua/uk/api/nakaz_601" target="_blank" rel="noopener noreferrer">
+                                {$btr->sviat__checkbox__sources_help_link|escape}
+                            </a>
+                        </p>
+
+                        {* Головне питання цієї сторінки — не «які галочки стоять»,
+                           а «що побачить менеджер». Рядок відповідає на нього
+                           одразу і оновлюється разом із перемикачами. *}
+                        <div class="sviat__checkbox_sources__preview">
+                            <span class="sviat__checkbox_sources__preview_label">{$btr->sviat__checkbox__sources_preview|escape}:</span>
+                            <span class="fn-checkbox-sources-preview"></span>
+                        </div>
+
+                        <div class="sviat__checkbox_sources__list">
+                            {foreach $checkbox_advance_sources as $checkboxSourceRow}
+                                {if $checkboxSourceRow.editable}
+                                    {* Засіб платежу з місцем під назву — не один рядок, а список:
+                                       NovaPay, LiqPay і WayForPay це три різні записи одного шаблону.
+                                       Порожнє поле ігнорується, тож видалити запис — стерти назву. *}
+                                    <div class="sviat__checkbox_sources__group{if !$checkboxSourceRow.common} sviat__checkbox_sources__item--rare hidden{/if}">
+                                        <div class="sviat__checkbox_sources__group_head">
+                                            <span class="sviat__checkbox_sources__group_title">{$checkboxSourceRow.prefix|escape}…</span>
+                                            <span class="sviat__checkbox_sources__form">{$btr->sviat__checkbox__sources_form_cashless|escape}</span>
+                                        </div>
+                                        <div class="fn-checkbox-source-names">
+                                            {foreach $checkboxSourceRow.names as $checkboxSourceName}
+                                                <div class="sviat__checkbox_sources__name_row" data-prefix="{$checkboxSourceRow.prefix|escape}">
+                                                    <label class="switch switch-default sviat__checkbox_sources__switch">
+                                                        <input class="switch-input fn-checkbox-source-toggle" type="checkbox"
+                                                               name="sviat__checkbox__source_on[{$checkboxSourceRow.key|escape}][{$checkboxSourceName@index}]"
+                                                               value="1"{if $checkboxSourceName.on} checked{/if}>
+                                                        <span class="switch-label"></span>
+                                                        <span class="switch-handle"></span>
+                                                    </label>
+                                                    <input class="form-control fn-checkbox-source-name" type="text"
+                                                           name="sviat__checkbox__source_name[{$checkboxSourceRow.key|escape}][{$checkboxSourceName@index}]"
+                                                           value="{$checkboxSourceName.name|escape}"
+                                                           placeholder="{$btr->sviat__checkbox__sources_name_placeholder|escape}">
+                                                    <button type="button" class="sviat__checkbox_sources__remove fn-checkbox-source-remove"
+                                                            title="{$btr->sviat__checkbox__sources_remove_name|escape}">&times;</button>
+                                                </div>
+                                            {/foreach}
+                                            {* Порожній рядок завжди напоготові: додати систему можна й без
+                                               JS, а порожня назва просто ігнорується при збереженні.
+                                               Перемикач вимкнений — увімкненим він обіцяв би те, чого ще
+                                               немає; щойно назву введуть, JS його вмикає сам. *}
+                                            <div class="sviat__checkbox_sources__name_row sviat__checkbox_sources__name_row--fresh" data-prefix="{$checkboxSourceRow.prefix|escape}">
+                                                <label class="switch switch-default sviat__checkbox_sources__switch">
+                                                    <input class="switch-input fn-checkbox-source-toggle" type="checkbox"
+                                                           name="sviat__checkbox__source_on[{$checkboxSourceRow.key|escape}][{$checkboxSourceRow.names|count}]"
+                                                           value="1">
+                                                    <span class="switch-label"></span>
+                                                    <span class="switch-handle"></span>
+                                                </label>
+                                                <input class="form-control fn-checkbox-source-name" type="text"
+                                                       name="sviat__checkbox__source_name[{$checkboxSourceRow.key|escape}][{$checkboxSourceRow.names|count}]"
+                                                       value=""
+                                                       placeholder="{$btr->sviat__checkbox__sources_name_placeholder|escape}">
+                                                <button type="button" class="sviat__checkbox_sources__remove fn-checkbox-source-remove"
+                                                        title="{$btr->sviat__checkbox__sources_remove_name|escape}">&times;</button>
+                                            </div>
+                                        </div>
+                                        <button type="button" class="sviat__checkbox_sources__add fn-checkbox-source-add">
+                                            {$btr->sviat__checkbox__sources_add_name|escape}
+                                        </button>
+                                    </div>
+                                {else}
+                                    <div class="sviat__checkbox_sources__row{if !$checkboxSourceRow.common} sviat__checkbox_sources__item--rare hidden{/if}"
+                                         data-label="{$checkboxSourceRow.label|escape}">
+                                        <label class="switch switch-default sviat__checkbox_sources__switch">
+                                            <input class="switch-input fn-checkbox-source-toggle" type="checkbox"
+                                                   name="sviat__checkbox__source_enabled[{$checkboxSourceRow.key|escape}]"
+                                                   value="1"{if $checkboxSourceRow.enabled} checked{/if}>
+                                            <span class="switch-label"></span>
+                                            <span class="switch-handle"></span>
+                                        </label>
+                                        <div class="sviat__checkbox_sources__field">
+                                            {* Мітку не правимо: її задає наказ № 601, і поле вводу тут
+                                               читалось би як дозвіл переписати реквізит чека. *}
+                                            <span class="sviat__checkbox_sources__fixed">{$checkboxSourceRow.label|escape}</span>
+                                        </div>
+                                        <span class="sviat__checkbox_sources__form{if $checkboxSourceRow.type == 'CASH'} sviat__checkbox_sources__form--cash{/if}">
+                                            {if $checkboxSourceRow.type == 'CASH'}
+                                                {$btr->sviat__checkbox__sources_form_cash|escape}
+                                            {else}
+                                                {$btr->sviat__checkbox__sources_form_cashless|escape}
+                                            {/if}
+                                        </span>
+                                    </div>
+                                {/if}
+                            {/foreach}
+                        </div>
+
+                        <button type="button" class="sviat__checkbox_sources__more fn-checkbox-sources-more"
+                                data-more="{$btr->sviat__checkbox__sources_show_rare|escape}"
+                                data-less="{$btr->sviat__checkbox__sources_hide_rare|escape}">
+                            {$btr->sviat__checkbox__sources_show_rare|escape}
+                        </button>
                     </div>
                 </div>
             </div>

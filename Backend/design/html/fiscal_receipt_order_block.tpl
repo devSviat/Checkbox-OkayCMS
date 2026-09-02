@@ -191,9 +191,7 @@
                                                    обирається сам, і його мітка мовчки йде в рядок 19 чека. *}
                                                 <option value="">{$btr->sviat__checkbox__advance_source_empty|escape}</option>
                                                 {foreach $checkboxSources as $checkboxSource}
-                                                    <option value="{$checkboxSource.key|escape}">
-                                                        {$checkboxSource.label|escape} — {$btr->sviat__checkbox__source_receipt_hint|escape}: «{$checkboxSource.receiptLabel|escape}»
-                                                    </option>
+                                                    <option value="{$checkboxSource.key|escape}">{$checkboxSource.label|escape}</option>
                                                 {/foreach}
                                             </select>
                                         </div>
@@ -209,9 +207,7 @@
                                             <select class="form-control selectpicker fn-checkbox-after-payment-source"
                                                     aria-label="{$btr->sviat__checkbox__advance_source_label|escape}">
                                                 {foreach $checkboxSources as $checkboxSource}
-                                                    <option value="{$checkboxSource.key|escape}"{if $checkboxSource.key == $checkboxAfterPaymentSource} selected{/if}>
-                                                        {$checkboxSource.label|escape} — {$btr->sviat__checkbox__source_receipt_hint|escape}: «{$checkboxSource.receiptLabel|escape}»
-                                                    </option>
+                                                    <option value="{$checkboxSource.key|escape}"{if $checkboxSource.key == $checkboxAfterPaymentSource} selected{/if}>{$checkboxSource.label|escape}</option>
                                                 {/foreach}
                                             </select>
                                             <button type="button" class="btn btn_small btn_checkbox fn-checkbox-after-payment hint-bottom-middle-t-white-s-small-mobile hint-anim"

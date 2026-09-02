@@ -20,6 +20,7 @@ use Okay\Admin\Helpers\BackendProductsHelper;
 use Okay\Admin\Requests\BackendPaymentsRequest;
 use Okay\Admin\Requests\BackendProductsRequest;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxHelper;
+use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxPaymentSources;
 use Okay\Modules\Sviat\Checkbox\Extenders\FrontExtender;
 use Okay\Modules\Sviat\Checkbox\Entities\TaxGroupsEntity;
 use Okay\Modules\Sviat\Checkbox\Extenders\BackendExtender;
@@ -39,6 +40,8 @@ class Init extends AbstractInit
     public const CASHIER_LOGIN       = 'sviat__checkbox__cashier_login';
     public const CASHIER_PASSWORD    = 'sviat__checkbox__cashier_password';
     public const CASHIER_LICENSE_KEY = 'sviat__checkbox__cashier_license_key';
+
+    public const ADVANCE_SOURCES = 'sviat__checkbox__advance_sources';
 
     public function install()
     {
@@ -141,6 +144,24 @@ class Init extends AbstractInit
                 ->setTypeEnum(['CASH', 'CARD', 'CASHLESS'], false)
                 ->setDefault('CASH')
         );
+    }
+
+    /**
+     * До 1.2.1 список джерел коштів був у коді. Магазин, який уже бачив його на
+     * картці замовлення, має побачити той самий після оновлення, тож старий
+     * набір записується явно — інакше спрацював би стандартний, без інтегратора.
+     */
+    public function update_1_2_1(): void
+    {
+        $settings = ServiceLocator::getInstance()->getService(Settings::class);
+        if ($settings->get(self::ADVANCE_SOURCES)) {
+            return;
+        }
+
+        $settings->set(self::ADVANCE_SOURCES, CheckboxPaymentSources::encode(
+            ['cash', 'bank_account', 'internet_banking', 'integrator:NovaPay'],
+            ['integrator' => ['NovaPay']]
+        ));
     }
 
     /**

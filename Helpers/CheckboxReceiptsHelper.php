@@ -654,9 +654,18 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
             $paymentsEntity = $this->entityFactory->get(PaymentsEntity::class);
             $method = $paymentsEntity->findOne(['id' => $order->payment_method_id]);
             $label = $method ? ($method->{Init::PAYMENT_LABEL_FIELD} ?? '') : '';
-            if (is_string($label) && stripos($label, 'novapay') !== false) {
-                return CheckboxPaymentForm::SOURCE_NOVAPAY;
+
+            // Платіжну систему шукаємо серед налаштованих, а не за одним зашитим
+            // «novapay»: інтеграторів у магазина стільки, скільки він завів, і
+            // спосіб оплати «Платіж LiqPay» має вести до свого запису, а не до
+            // чужого. Збіг за назвою в мітці способу оплати.
+            if (is_string($label) && trim($label) !== '') {
+                $integrator = $this->matchConfiguredIntegrator($label);
+                if ($integrator !== null) {
+                    return $integrator;
+                }
             }
+
             $type = $method ? ($method->{Init::PAYMENT_TYPE_FIELD} ?? '') : '';
             if ($type === 'CASH') {
                 return CheckboxPaymentForm::SOURCE_CASH;
@@ -664,6 +673,20 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
         }
 
         return CheckboxPaymentForm::SOURCE_BANK_ACCOUNT;
+    }
+
+    /** Налаштоване джерело, назва якого згадана в мітці способу оплати. */
+    private function matchConfiguredIntegrator(string $paymentLabel): ?string
+    {
+        $config = CheckboxPaymentSources::decode($this->settings->get(Init::ADVANCE_SOURCES));
+        foreach ($config['enabled'] as $key) {
+            $name = CheckboxPaymentCatalogue::name($key);
+            if ($name !== null && $name !== '' && mb_stripos($paymentLabel, $name) !== false) {
+                return $key;
+            }
+        }
+
+        return null;
     }
 
     /** Мітка засобу оплати, налаштована для способу оплати замовлення. */

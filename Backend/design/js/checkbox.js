@@ -247,4 +247,109 @@ $(function(){
         checkboxSubmit($button, {orderId: $button.data('order_id')});
     });
 
+
+    // Налаштування джерел коштів: рядок «менеджер побачить». Питання сторінки —
+    // не які галочки стоять, а який список отримає менеджер, і відповідь має
+    // бути видно до збереження.
+    function checkboxRenderSourcesPreview() {
+        let $preview = $('.fn-checkbox-sources-preview');
+        if (!$preview.length) { return; }
+
+        let labels = [];
+        $('.sviat__checkbox_sources__list').find('.fn-checkbox-source-toggle:checked').each(function(){
+            let $row = $(this).closest('.sviat__checkbox_sources__name_row'),
+                label;
+
+            if ($row.length) {
+                // Назва платіжної системи стає міткою разом із префіксом засобу:
+                // «Платіж через інтегратора» + «LiqPay». Порожнє поле — це просто
+                // вільне місце для наступного запису.
+                let name = String($row.find('.fn-checkbox-source-name').val() || '').trim();
+                if (!name) { return; }
+                label = (String($row.data('prefix') || '') + ' ' + name).trim();
+            } else {
+                label = String($(this).closest('.sviat__checkbox_sources__row').data('label') || '').trim();
+            }
+
+            if (label && label.indexOf('<') === -1 && label.indexOf('>') === -1) {
+                labels.push(label);
+            }
+        });
+
+        $preview.text(labels.length ? labels.join(' \u00b7 ') : '\u2014');
+    }
+
+    $(document).on('change', '.fn-checkbox-source-toggle', checkboxRenderSourcesPreview);
+    checkboxRenderSourcesPreview();
+
+    // Порожній рядок стоїть вимкненим — вмикати нічого. Назву ввели, отже її й
+    // хочуть бачити: перемикач іде за нею сам. Стосується лише незайманого
+    // рядка: у заповненому вимкнений стан міг бути вибором магазину, і правка
+    // одруку його б не скасовувала.
+    $(document).on('input', '.fn-checkbox-source-name', function(){
+        let $row = $(this).closest('.sviat__checkbox_sources__name_row');
+
+        if ($row.hasClass('sviat__checkbox_sources__name_row--fresh')) {
+            let filled = String($(this).val() || '').trim() !== '';
+            $row.find('.fn-checkbox-source-toggle').prop('checked', filled);
+        }
+
+        checkboxRenderSourcesPreview();
+    });
+
+    // Щойно рядок зачепили перемикачем, він більше не незайманий.
+    $(document).on('change', '.fn-checkbox-source-toggle', function(){
+        $(this).closest('.sviat__checkbox_sources__name_row--fresh')
+            .removeClass('sviat__checkbox_sources__name_row--fresh');
+    });
+
+    // Індекс тримає пару name/on разом: знятий прапорець не надсилається, і без
+    // спільного індексу сервер зіставив би назву з чужим станом.
+    function checkboxReindexSourceNames($list) {
+        $list.children('.sviat__checkbox_sources__name_row').each(function(index){
+            $(this).find('[name]').each(function(){
+                this.name = this.name.replace(/\[\d+\]$/, '[' + index + ']');
+            });
+        });
+    }
+
+    $(document).on('click', '.fn-checkbox-source-add', function(){
+        let $list = $(this).closest('.sviat__checkbox_sources__group').find('.fn-checkbox-source-names'),
+            $row = $list.children('.sviat__checkbox_sources__name_row').last().clone();
+
+        $row.addClass('sviat__checkbox_sources__name_row--fresh');
+        $row.find('.fn-checkbox-source-name').val('');
+        $row.find('.fn-checkbox-source-toggle').prop('checked', false);
+        $list.append($row);
+        checkboxReindexSourceNames($list);
+        $row.find('.fn-checkbox-source-name').trigger('focus');
+    });
+
+    $(document).on('click', '.fn-checkbox-source-remove', function(){
+        let $row = $(this).closest('.sviat__checkbox_sources__name_row'),
+            $list = $row.parent();
+
+        // Останній рядок не прибираємо — лишається порожнім місцем під наступну
+        // систему, інакше додати її без JS стало б неможливо.
+        if ($list.children('.sviat__checkbox_sources__name_row').length === 1) {
+            $row.addClass('sviat__checkbox_sources__name_row--fresh');
+            $row.find('.fn-checkbox-source-name').val('');
+            $row.find('.fn-checkbox-source-toggle').prop('checked', false);
+        } else {
+            $row.remove();
+        }
+
+        checkboxReindexSourceNames($list);
+        checkboxRenderSourcesPreview();
+    });
+
+    $(document).on('click', '.fn-checkbox-sources-more', function(){
+        let $button = $(this),
+            $rare = $('.sviat__checkbox_sources__item--rare'),
+            hidden = $rare.first().hasClass('hidden');
+
+        $rare.toggleClass('hidden', !hidden);
+        $button.text(hidden ? $button.data('less') : $button.data('more'));
+    });
+
 });
