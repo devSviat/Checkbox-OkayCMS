@@ -15,6 +15,7 @@ use Okay\Entities\PaymentsEntity;
 use Okay\Modules\Sviat\Checkbox\Entities\FiscalReceiptsEntity;
 use Okay\Modules\Sviat\Checkbox\Entities\CashierShiftsEntity;
 use Okay\Modules\Sviat\Checkbox\Entities\TaxGroupsEntity;
+use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxCardActions;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxHelper;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxReceiptSet;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxPaymentSources;
@@ -112,33 +113,25 @@ class BackendExtender implements ExtensionInterface
 
         // Тип фільтрується в PHP, а не в запиті: до виконання міграції колонки
         // receipt_type ще немає, і вибірка з фільтром по ній мовчки порожня.
-        // Кнопки питають «чи є що повертати», а не «чи фіскалізували колись»:
-        // після повного повернення кнопка повернення мусить зникнути, інакше
-        // другий чек повернення на той самий продаж робиться одним кліком.
-        // Автоматика питає інше й користується hasSaleReceipt().
-        $hasSaleReceipt = CheckboxReceiptSet::hasUncoveredSaleReceipt($orderReceiptRows);
-
-        // Стан невідомий (Checkbox не відповів) гасить усі кнопки: діяти наосліп
-        // на замовленні з ланцюжком дорожче, ніж почекати. Шаблон мусить сказати
-        // менеджеру, чому кнопок немає, — інакше це виглядає як поламана сторінка.
-        $chainIsCancelled = in_array($chainStatus, ['CANCELLED', 'PARTIAL_CANCELLED'], true);
-        // Скасований ланцюжок повертає замовлення до звичайного шляху: сервер
-        // (createReceipt()) дозволяє продаж саме в цьому стані, і кнопка мусить
-        // це показати — інакше менеджер лишається без жодного виходу.
-        $chainBlocksSale = $chainStatus !== null && !$chainIsCancelled;
+        //
+        // Два різні питання про той самий набір чеків: «чи фіскалізували колись»
+        // і «чи лишилось що повертати». Перше вирішує, чи можна виставити ще
+        // один чек продажу або аванс, друге — чи є що повертати. Плутанина між
+        // ними вже давала і глухі кнопки, і зниклі.
+        $hasSaleReceipt = CheckboxReceiptSet::hasSaleReceipt($orderReceiptRows);
+        $hasUncoveredSale = CheckboxReceiptSet::hasUncoveredSaleReceipt($orderReceiptRows);
 
         // «Не відправляти чек» — це про спосіб оплати замовлення, тобто про те,
         // як надійде основна сума. Аванс може прийти зовсім іншим шляхом, і
         // менеджер називає його явно, тож прапорець ланцюжка не стосується:
         // ані створення, ані закриття. Він гасить лише чеки, що спираються на
         // сам спосіб оплати — продаж і повернення.
-        $this->design->assign('checkboxActions', [
-            'prepayment'   => !$chainBlocksSale && !$chainIsCancelled && !$hasSaleReceipt,
-            'afterPayment' => $chainStatus === 'PARTIAL_PAID',
-            'returnChain'  => in_array($chainStatus, ['PARTIAL_PAID', 'FULL_PAID'], true),
-            'sale'         => !$dontSend && !$chainBlocksSale && !$hasSaleReceipt,
-            'return'       => !$dontSend && !$chainBlocksSale && $hasSaleReceipt,
-        ]);
+        $this->design->assign('checkboxActions', CheckboxCardActions::forOrder(
+            $chainStatus,
+            $hasSaleReceipt,
+            $hasUncoveredSale,
+            (bool)$dontSend
+        ));
         // Пункт списку — це рівно та мітка, яка надрукується в рядку 19 чека.
         // Окремої «назви для менеджера» немає навмисне: два різні написи на
         // один вибір змушували читати обидва, а фіскальний наслідок має один.
@@ -172,10 +165,6 @@ class BackendExtender implements ExtensionInterface
             'checkboxChainNextStep',
             $chainStatus === null ? '' : ($nextSteps[$chainStatus] ?? '')
         );
-
-        // Тестова й бойова каси відрізняються лише обліковими даними, тож
-        // менеджер має бачити режим ДО натискання, а не в списку чеків після.
-        $this->design->assign('checkboxChainIsCancelled', $chainIsCancelled);
 
         // Скільки лишилось узяти з клієнта при отриманні. Ім'я навмисне
         // нейтральне: форма накладної підставляє це значення, не знаючи ні про

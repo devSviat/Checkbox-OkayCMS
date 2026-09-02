@@ -173,27 +173,14 @@
                                                     <span class="sviat__checkbox_status_loader hidden"><span class="spinner"></span></span>
                                                 </button>
                                             {/if}
-                                            <button type="button" class="btn btn_small btn_checkbox-advance fn-checkbox-prepayment hint-bottom-middle-t-white-s-small-mobile hint-anim"
+                                            {* Аванс питає суму й джерело — обидва йдуть у фіскальний
+                                               документ, тож питаємо їх у модалці, з явним підтвердженням,
+                                               а не двома полями, які постійно висять на картці. *}
+                                            <button type="button" class="btn btn_small btn_checkbox-advance hint-bottom-middle-t-white-s-small-mobile hint-anim"
                                                     data-hint="{$btr->sviat__checkbox__tip_prepayment|escape}"
-                                                    data-order_id="{$order->id}"
-                                                    data-href="{url_generator route="Sviat_Checkbox_createPrepaymentReceipt" absolute=1}">
+                                                    data-toggle="modal" data-target="#sviat_checkbox_advance_modal">
                                                 <span class="sviat__checkbox_receipt_button_text">{$btr->sviat__checkbox__button_prepayment|escape}</span>
-                                                <span class="sviat__checkbox_status_loader hidden"><span class="spinner"></span></span>
                                             </button>
-                                        </div>
-                                        <div class="sviat__checkbox_prepayment_form sviat__checkbox_prepayment_form--collapsed" data-amount_error="{$btr->sviat__checkbox__errors_advance_not_a_number|escape}"
-                                             data-source_error="{$btr->sviat__checkbox__errors_source_not_chosen|escape}">
-                                            <input type="text" class="form-control fn-checkbox-advance-amount"
-                                                   placeholder="{$btr->sviat__checkbox__advance_amount_placeholder|escape}">
-                                            <select class="form-control selectpicker fn-checkbox-advance-source"
-                                                    aria-label="{$btr->sviat__checkbox__advance_source_label|escape}">
-                                                {* Порожній перший пункт: інакше «Переказ на рахунок ФОП»
-                                                   обирається сам, і його мітка мовчки йде в рядок 19 чека. *}
-                                                <option value="">{$btr->sviat__checkbox__advance_source_empty|escape}</option>
-                                                {foreach $checkboxSources as $checkboxSource}
-                                                    <option value="{$checkboxSource.key|escape}">{$checkboxSource.label|escape}</option>
-                                                {/foreach}
-                                            </select>
                                         </div>
                                     </div>
                                 {/if}
@@ -221,9 +208,11 @@
                                 {/if}
 
                                 {if $checkboxActions.returnChain}
-                                    <button type="button" class="btn btn_small btn_checkbox-return fn-checkbox-return-chain"
+                                    <button type="button" class="btn btn_small btn_checkbox-return fn-checkbox-return-chain fn-checkbox-confirm"
+                                            data-toggle="modal" data-target="#sviat_checkbox_confirm_modal"
                                             data-order_id="{$order->id}"
-                                            data-confirm="{$btr->sviat__checkbox__confirm_return_chain|escape}"
+                                            data-confirm_title="{if $checkboxChain.pre_payment_status == 'PARTIAL_PAID'}{$btr->sviat__checkbox__button_return_advance|escape}{else}{$btr->sviat__checkbox__button_return_all|escape}{/if}"
+                                            data-confirm_text="{$btr->sviat__checkbox__confirm_return_chain|escape}"
                                             data-href="{url_generator route="Sviat_Checkbox_returnChain" absolute=1}">
                                         {* Назва за станом: при відкритому ланцюжку повертається лише аванс, при
                                                закритому — ще й чек післяплати. «Повернути ланцюжок»
@@ -244,8 +233,13 @@
                                 {/if}
 
                                 {if $checkboxActions.return}
-                                    <button type="button" class="btn btn_small btn_checkbox-return fn-checkbox-create-receipt"
+                                    {* Чек повернення скасовує фіскалізацію й незворотний так само, як
+                                       і повернення ланцюжка, — питаємо так само. *}
+                                    <button type="button" class="btn btn_small btn_checkbox-return fn-checkbox-create-receipt fn-checkbox-confirm"
+                                        data-toggle="modal" data-target="#sviat_checkbox_confirm_modal"
                                         data-order_id="{$order->id}" data-return="1"
+                                        data-confirm_title="{$btr->sviat__checkbox__order_receipt_create_return|escape}"
+                                        data-confirm_text="{$btr->sviat__checkbox__confirm_create_return|escape}"
                                         data-href="{url_generator route="Sviat_Checkbox_createReceipt" absolute=1}">
                                         <span class="sviat__checkbox_receipt_button_text">{$btr->sviat__checkbox__order_receipt_create_return|escape}</span>
                                         <span class="sviat__checkbox_status_loader hidden"><span class="spinner"></span></span>
@@ -253,6 +247,73 @@
                                 {/if}
                             </div>
                         {/if}
+                    </div>
+                </div>
+
+                {* Модалки блоку. Розмітка й показ — теми: data-toggle="modal"
+                   плюс data-target, закриття — data-dismiss. Обидві лежать усередині
+                   блоку чеків, бо на сторінці рівно одне замовлення. *}
+                <div id="sviat_checkbox_advance_modal" class="modal fade show" role="dialog">
+                    <div class="modal-dialog modal-md">
+                        <div class="modal-content">
+                            <div class="card-header">
+                                <div class="heading_modal">{$btr->sviat__checkbox__modal_advance_title|escape}</div>
+                            </div>
+                            <div class="modal-body"
+                                 data-amount_error="{$btr->sviat__checkbox__errors_advance_not_a_number|escape}"
+                                 data-source_error="{$btr->sviat__checkbox__errors_source_not_chosen|escape}">
+                                <div class="sviat__checkbox_modal_field">
+                                    <div class="heading_label">{$btr->sviat__checkbox__advance_amount_placeholder|escape}</div>
+                                    <input type="text" class="form-control fn-checkbox-advance-amount"
+                                           placeholder="{$btr->sviat__checkbox__advance_amount_placeholder|escape}">
+                                </div>
+                                <div class="sviat__checkbox_modal_field">
+                                    <div class="heading_label">{$btr->sviat__checkbox__advance_source_label|escape}</div>
+                                    <select class="form-control selectpicker fn-checkbox-advance-source"
+                                            aria-label="{$btr->sviat__checkbox__advance_source_label|escape}">
+                                        {* Порожній перший пункт: інакше перше джерело обирається саме,
+                                           і його мітка мовчки йде в рядок 19 чека. *}
+                                        <option value="">{$btr->sviat__checkbox__advance_source_empty|escape}</option>
+                                        {foreach $checkboxSources as $checkboxSource}
+                                            <option value="{$checkboxSource.key|escape}">{$checkboxSource.label|escape}</option>
+                                        {/foreach}
+                                    </select>
+                                </div>
+                                <div class="sviat__checkbox_modal_actions">
+                                    <button type="button" class="btn btn_small btn_gray" data-dismiss="modal">
+                                        {$btr->sviat__checkbox__modal_cancel|escape}
+                                    </button>
+                                    <button type="button" class="btn btn_small btn_checkbox-advance fn-checkbox-prepayment"
+                                            data-order_id="{$order->id}"
+                                            data-href="{url_generator route="Sviat_Checkbox_createPrepaymentReceipt" absolute=1}">
+                                        <span class="sviat__checkbox_receipt_button_text">{$btr->sviat__checkbox__modal_advance_submit|escape}</span>
+                                        <span class="sviat__checkbox_status_loader hidden"><span class="spinner"></span></span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="sviat_checkbox_confirm_modal" class="modal fade show" role="dialog">
+                    <div class="modal-dialog modal-md">
+                        <div class="modal-content">
+                            <div class="card-header">
+                                <div class="heading_modal fn-checkbox-confirm-title"></div>
+                            </div>
+                            <div class="modal-body">
+                                <div class="sviat__checkbox_modal_text fn-checkbox-confirm-text"></div>
+                                <div class="sviat__checkbox_modal_actions">
+                                    <button type="button" class="btn btn_small btn_gray" data-dismiss="modal">
+                                        {$btr->sviat__checkbox__modal_cancel|escape}
+                                    </button>
+                                    <button type="button" class="btn btn_small btn_checkbox-return fn-checkbox-confirm-yes">
+                                        <span class="sviat__checkbox_receipt_button_text">{$btr->sviat__checkbox__modal_confirm_yes|escape}</span>
+                                        <span class="sviat__checkbox_status_loader hidden"><span class="spinner"></span></span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

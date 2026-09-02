@@ -242,7 +242,10 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
             'order_id'     => $orderId,
             'receipt_type' => FiscalReceiptsEntity::TYPE_PREPAYMENT,
         ]);
-        $relationId = CheckboxChainId::build($orderId, $existingChains);
+        $relationId = CheckboxChainId::build($orderId, $existingChains, CheckboxChainId::configuredPrefix(
+            $this->settings->get(Init::CHAIN_FORMAT),
+            $this->settings->get(Init::CHAIN_PREFIX)
+        ));
 
         $payload = [
             'id'                 => $this->uuid4(),

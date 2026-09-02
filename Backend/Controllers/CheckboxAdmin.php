@@ -9,6 +9,7 @@ use Okay\Core\Modules\Modules;
 use Okay\Core\ServiceLocator;
 use Okay\Entities\OrderStatusEntity;
 use Okay\Modules\Sviat\Checkbox\Entities\CashierShiftsEntity;
+use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxChainId;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxHelper;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxPaymentCatalogue;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxPaymentSources;
@@ -33,6 +34,16 @@ class CheckboxAdmin extends IndexAdmin
             $this->settings->set('sviat__checkbox__cashier_password', $this->request->post('sviat__checkbox__cashier_password'));
             $this->settings->set('sviat__checkbox__cashier_license_key', $this->request->post('sviat__checkbox__cashier_license_key'));
             $this->saveAdvanceSources();
+
+            // Префікс читається сирим: фільтр рядка лишає лише літери, цифри
+            // та `_ - . %`, а двокрапку й решту пунктуації вирізає мовчки.
+            // Чистить префікс CheckboxChainId — там же, де знає про його межі.
+            $format = $this->request->post(Init::CHAIN_FORMAT);
+            $this->settings->set(
+                Init::CHAIN_FORMAT,
+                $format === CheckboxChainId::FORMAT_DIGITS ? CheckboxChainId::FORMAT_DIGITS : CheckboxChainId::FORMAT_PREFIX
+            );
+            $this->settings->set(Init::CHAIN_PREFIX, CheckboxChainId::normalisePrefix($this->request->post(Init::CHAIN_PREFIX)));
 
             $modules = ServiceLocator::getInstance()->getService(Modules::class);
             if ($modules->isActiveModule('Sviat', 'NovaPoshtaTracking')) {
@@ -65,6 +76,16 @@ class CheckboxAdmin extends IndexAdmin
         $installedAtInput = !empty($installedAtRaw)
             ? date('Y-m-d\TH:i', strtotime($installedAtRaw))
             : '';
+
+        $chainPrefix = CheckboxChainId::normalisePrefix($this->settings->get(Init::CHAIN_PREFIX));
+        $this->design->assign('checkbox_chain_format', $this->settings->get(Init::CHAIN_FORMAT) === CheckboxChainId::FORMAT_DIGITS
+            ? CheckboxChainId::FORMAT_DIGITS
+            : CheckboxChainId::FORMAT_PREFIX);
+        $this->design->assign('checkbox_chain_prefix', $chainPrefix);
+        // Приклад рахує PHP тими самими правилами, що й бойовий шлях: доповнення
+        // нулями неочевидне, і побачити його треба до збереження.
+        $this->design->assign('checkbox_chain_example_prefix', CheckboxChainId::build(22674, 0, $chainPrefix));
+        $this->design->assign('checkbox_chain_example_digits', CheckboxChainId::build(22674, 0, null));
 
         $this->design->assign('checkbox_advance_sources', CheckboxPaymentSources::rows(
             CheckboxPaymentSources::decode($this->settings->get(Init::ADVANCE_SOURCES))

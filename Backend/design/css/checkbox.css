@@ -520,11 +520,17 @@
     width: 150px;
 }
 
-.sviat__checkbox_prepayment_form .fn-checkbox-advance-source,
-.sviat__checkbox_prepayment_form .fn-checkbox-after-payment-source,
-.sviat__checkbox_prepayment_form .bootstrap-select {
-    /* Стеля ширини: без неї селект розтягується на всю картку, а поруч із ним
-       кнопка виглядає загубленою. */
+/* Стеля ширини: без неї селект розтягується на всю картку, а поруч із ним
+   кнопка виглядає загубленою.
+
+   Дочірній комбінатор обов'язковий. selectpicker копіює класи елемента на свою
+   обгортку, а сам select лишає в DOM прозорим і абсолютним — з власною шириною
+   .5px. Наше правило било сильніше й робило з нього клікабельний прямокутник на
+   280px праворуч від стилізованого: клік туди відкривав рідний список браузера
+   поверх намальованого. */
+.sviat__checkbox_prepayment_form > .bootstrap-select,
+.sviat__checkbox_prepayment_form > select.fn-checkbox-advance-source,
+.sviat__checkbox_prepayment_form > select.fn-checkbox-after-payment-source {
     width: auto !important;
     min-width: 280px;
     max-width: 460px;
@@ -542,14 +548,6 @@
 
 .sviat__checkbox_receipts_actions > * {
     margin-bottom: 0;
-}
-
-/* Аванс — рідкісний сценарій: поля з'являються після кліку, а не займають
-   картку постійно. Кнопка лишається видимою й у згорнутому стані. */
-.sviat__checkbox_prepayment_form--collapsed .fn-checkbox-advance-amount,
-.sviat__checkbox_prepayment_form--collapsed .fn-checkbox-advance-source,
-.sviat__checkbox_prepayment_form--collapsed .bootstrap-select {
-    display: none !important;
 }
 
 /* Аванс — синій, а не ще один відтінок темного: дві сусідні кнопки запускають
@@ -733,4 +731,35 @@
 
 .sviat__checkbox_sources__more:hover {
     text-decoration: underline;
+}
+
+/* Модалки модуля. Розмітка й показ — теми (okay-modal.js на a11y-dialog), тут
+   лише те, чого їй бракує: поля в стовпчик і проміжок перед кнопками. */
+.sviat__checkbox_modal_field {
+    margin-bottom: 12px;
+    text-align: left;
+}
+
+.sviat__checkbox_modal_field .heading_label {
+    margin-bottom: 4px;
+}
+
+/* Ті самі 280px, що й у формі на картці, але вже без боротьби зі
+   selectpicker: тут ширину задає контейнер, а не сам контрол. */
+.sviat__checkbox_modal_field > .bootstrap-select,
+.sviat__checkbox_modal_field > select {
+    width: 100% !important;
+    max-width: none;
+}
+
+.sviat__checkbox_modal_text {
+    margin-bottom: 16px;
+    text-align: left;
+    line-height: 1.45;
+}
+
+.sviat__checkbox_modal_actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
 }
