@@ -136,7 +136,11 @@ class FiscalReceiptAjaxController extends AbstractController
         }
 
         $orderId = $this->request->post('orderId', 'integer') ?: 0;
-        $source  = (string)$this->request->post('source', 'string');
+        // Сире значення, а не post(..., 'string'): фільтр рядка вирізає
+        // двокрапку, і «integrator:NovaPay» приходив би як «integratorNovaPay» —
+        // тобто жодна названа платіжна система не проходила б перевірку.
+        // Захистом тут є не фільтр, а білий список каталогу нижче.
+        $source  = (string)$this->request->post('source');
 
         // Сире значення, а не post(..., 'string'): фільтр рядка вирізає кому як
         // «зайвий символ», тож «500,50» ставало «50050» — чек на 50 тисяч
@@ -180,7 +184,11 @@ class FiscalReceiptAjaxController extends AbstractController
         }
 
         $orderId = $this->request->post('orderId', 'integer') ?: 0;
-        $source  = (string)$this->request->post('source', 'string');
+        // Сире значення, а не post(..., 'string'): фільтр рядка вирізає
+        // двокрапку, і «integrator:NovaPay» приходив би як «integratorNovaPay» —
+        // тобто жодна названа платіжна система не проходила б перевірку.
+        // Захистом тут є не фільтр, а білий список каталогу нижче.
+        $source  = (string)$this->request->post('source');
         $rawAmount = (string)$this->request->post('amount');
 
         if (!CheckboxPaymentForm::isKnown($source)) {

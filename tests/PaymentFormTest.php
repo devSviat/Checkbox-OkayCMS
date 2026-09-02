@@ -2,14 +2,15 @@
 
 namespace Modules\Sviat\Checkbox;
 
+use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxPaymentCatalogue;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxPaymentForm;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Мітка засобу оплати — це рядок 19 фіскального чека за Положенням № 13, а не
- * вільний текст. Значення взяті з офіційних прикладів Checkbox; будь-яка
- * "покращена" редакція тут означає неправильний реквізит у податковому документі.
+ * Мітка засобу оплати — це рядок 19 фіскального чека за наказом Мінфіну № 601,
+ * а не вільний текст. Значення взяті з переліку Checkbox; будь-яка "покращена"
+ * редакція тут означає неправильний реквізит у податковому документі.
  */
 class PaymentFormTest extends TestCase
 {
@@ -28,8 +29,8 @@ class PaymentFormTest extends TestCase
     {
         return [
             'переказ з рахунку клієнта' => [CheckboxPaymentForm::SOURCE_BANK_ACCOUNT, 'CASHLESS', 'З поточного рахунку'],
-            'з картки клієнта на IBAN'  => [CheckboxPaymentForm::SOURCE_CARD, 'CASHLESS', 'Інтернет банкінг'],
-            'NovaPay при отриманні'     => [CheckboxPaymentForm::SOURCE_NOVAPAY, 'CASHLESS', 'Платіж через інтегратора NovaPay'],
+            'з картки клієнта на IBAN'  => ['internet_banking', 'CASHLESS', 'Інтернет банкінг'],
+            'через термінал'            => ['payment_card', 'CASHLESS', 'Картка'],
             'готівка'                   => [CheckboxPaymentForm::SOURCE_CASH, 'CASH', 'Готівка'],
         ];
     }
@@ -45,11 +46,11 @@ class PaymentFormTest extends TestCase
         $payment = CheckboxPaymentForm::payment(
             CheckboxPaymentForm::SOURCE_BANK_ACCOUNT,
             150000,
-            'Платіж LiqPay'
+            'Платіж через інтегратора LiqPay'
         );
 
         self::assertSame('CASHLESS', $payment['type'], 'тип лишається за джерелом');
-        self::assertSame('Платіж LiqPay', $payment['label']);
+        self::assertSame('Платіж через інтегратора LiqPay', $payment['label']);
         self::assertSame(150000, $payment['value']);
     }
 
@@ -57,44 +58,96 @@ class PaymentFormTest extends TestCase
     public function testEmptyOverrideFallsBackToTheStandardLabel(): void
     {
         foreach ([null, '', '   '] as $empty) {
-            $payment = CheckboxPaymentForm::payment(CheckboxPaymentForm::SOURCE_CARD, 100, $empty);
+            $payment = CheckboxPaymentForm::payment('internet_banking', 100, $empty);
             self::assertSame('Інтернет банкінг', $payment['label']);
         }
     }
 
     /**
-     * Інтерфейс показує менеджеру, що саме надрукується в чеку. Мітка мусить
-     * збігатись із тією, що реально піде в payments[] — розходження тут
-     * означало б, що вибір показують один, а фіскалізують інший.
+     * Мітка з місцем під назву («Платіж через інтегратора <назва інтегратора>»)
+     * без самої назви — готовий рядок фіскального чека з кутовими дужками.
+     * Checkbox таке приймає, тож упіймати це можна лише тут.
      */
-    /** @dataProvider sourceProvider */
-    #[DataProvider('sourceProvider')]
-    public function testReceiptLabelMatchesWhatGoesIntoThePayment(string $source, string $type, string $label): void
+    public function testUnfilledLabelTemplateNeverReachesAReceipt(): void
     {
-        self::assertSame($label, CheckboxPaymentForm::receiptLabel($source));
+        $this->expectException(\InvalidArgumentException::class);
+        CheckboxPaymentForm::payment(CheckboxPaymentForm::SOURCE_INTEGRATOR, 100);
+    }
+
+    /**
+     * Назва платіжної системи живе в самому ключі, тож мітка чека виводиться з
+     * нього одного — без звірки з налаштуваннями. Інакше ланцюжок, відкритий до
+     * того, як магазин перебрав список, лишився б без свого засобу платежу.
+     */
+    public function testNamedIntegratorComposesItsOwnLabel(): void
+    {
+        foreach (['NovaPay', 'LiqPay', 'WayForPay'] as $system) {
+            $payment = CheckboxPaymentForm::payment(
+                CheckboxPaymentCatalogue::compose(CheckboxPaymentForm::SOURCE_INTEGRATOR, $system),
+                100
+            );
+
+            self::assertSame('Платіж через інтегратора ' . $system, $payment['label']);
+            self::assertSame('CASHLESS', $payment['type']);
+        }
+    }
+
+    public function testEachTemplateComposesItsOwnLabel(): void
+    {
         self::assertSame(
-            CheckboxPaymentForm::payment($source, 100)['label'],
-            CheckboxPaymentForm::receiptLabel($source)
+            'Криптовалюта USDT',
+            CheckboxPaymentForm::payment('crypto:USDT', 100)['label']
+        );
+        self::assertSame(
+            'Електронні гроші GooglePay',
+            CheckboxPaymentForm::payment('emoney:GooglePay', 100)['label']
         );
     }
 
     /**
-     * Нове джерело без підпису в мовних файлах з'явиться в списку порожнім
-     * рядком, і менеджер обере невідомо що. Дефект тихий: побачити його можна
-     * лише в готовому чеку.
+     * Назва підставляється дослівно. preg_replace трактував би «$1» і «\\1» як
+     * зворотні посилання, тож магазин вписав би «A$1B», а в рядок 19 чека пішло
+     * б «AB» — мовчки й лише в готовому фіскальному документі.
+     *
+     * @dataProvider trickyNameProvider
      */
-    public function testEverySourceHasALabelInEveryLanguage(): void
+    #[DataProvider('trickyNameProvider')]
+    public function testNameIsSubstitutedLiterally(string $name): void
     {
-        foreach (['ua', 'ru', 'en'] as $language) {
-            $lang = [];
-            require __DIR__ . '/../../../../Okay/Modules/Sviat/Checkbox/Backend/lang/' . $language . '.php';
+        self::assertSame(
+            'Платіж через інтегратора ' . $name,
+            CheckboxPaymentForm::payment(CheckboxPaymentCatalogue::compose('integrator', $name), 100)['label']
+        );
+    }
 
-            foreach (CheckboxPaymentForm::sources() as $source) {
-                $key = 'sviat__checkbox__source_' . $source;
-                self::assertArrayHasKey($key, $lang, "{$language}: джерело {$source} без підпису");
-                self::assertNotSame('', trim((string)$lang[$key]), "{$language}: порожній підпис для {$source}");
-            }
-        }
+    /** @return array<string, array{0: string}> */
+    public static function trickyNameProvider(): array
+    {
+        return [
+            'зворотне посилання $1' => ['A$1B'],
+            'ціла збіжність $0'     => ['$0'],
+            'зворотний слеш'        => ['Mono\\Pay'],
+            'долар у кінці'         => ['100$'],
+            'слеш із цифрою'        => ['Pay\\1'],
+            'двокрапка в назві'     => ['Some:Thing'],
+        ];
+    }
+
+    /** Порожня назва — «Платіж через інтегратора» без самого інтегратора. */
+    public function testEmptyNameIsNotAValidSource(): void
+    {
+        self::assertFalse(CheckboxPaymentCatalogue::isKnown('integrator:'));
+        self::assertFalse(CheckboxPaymentCatalogue::isKnown('integrator:   '));
+
+        $this->expectException(\InvalidArgumentException::class);
+        CheckboxPaymentForm::payment('integrator:', 100);
+    }
+
+    /** Назва там, де каталог її не передбачив, — це вже інший засіб платежу. */
+    public function testNameOnAFixedSourceIsRejected(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        CheckboxPaymentForm::payment('cash:Готівочка', 100);
     }
 
     public function testUnknownSourceIsRejectedRatherThanGuessed(): void
@@ -104,11 +157,35 @@ class PaymentFormTest extends TestCase
         CheckboxPaymentForm::payment('щось_невідоме', 50000);
     }
 
-    public function testOtherIsNotAValidType(): void
+    /**
+     * Джерела, які називає сам код: автоматика виводить їх зі способу оплати
+     * замовлення, тож перейменування в каталозі поклало б чек післяплати.
+     * SOURCE_INTEGRATOR — база: сам по собі до чека він не доходить, лише разом
+     * із назвою платіжної системи.
+     */
+    public function testSourcesNamedInCodeExistInTheCatalogue(): void
     {
-        // Checkbox приймає лише CASH і CASHLESS — OTHER дає 422
-        foreach (CheckboxPaymentForm::sources() as $source) {
-            self::assertContains(CheckboxPaymentForm::payment($source, 100)['type'], ['CASH', 'CASHLESS']);
+        foreach ([
+            CheckboxPaymentForm::SOURCE_BANK_ACCOUNT,
+            CheckboxPaymentForm::SOURCE_INTEGRATOR,
+            CheckboxPaymentForm::SOURCE_CASH,
+        ] as $source) {
+            self::assertContains($source, CheckboxPaymentCatalogue::keys(), $source);
+        }
+
+        self::assertTrue(CheckboxPaymentCatalogue::isKnown(CheckboxPaymentForm::SOURCE_CASH));
+        self::assertTrue(CheckboxPaymentCatalogue::isKnown(CheckboxPaymentForm::SOURCE_BANK_ACCOUNT));
+        self::assertFalse(
+            CheckboxPaymentCatalogue::isKnown(CheckboxPaymentForm::SOURCE_INTEGRATOR),
+            'інтегратор без назви — не джерело'
+        );
+    }
+
+    public function testOnlyCashAndCashlessAreEverSent(): void
+    {
+        // Checkbox приймає лише CASH і CASHLESS — OTHER дає 422, CARD застарілий
+        foreach (CheckboxPaymentCatalogue::keys() as $source) {
+            self::assertContains(CheckboxPaymentCatalogue::type($source), ['CASH', 'CASHLESS'], $source);
         }
     }
 }

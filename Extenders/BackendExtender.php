@@ -17,7 +17,7 @@ use Okay\Modules\Sviat\Checkbox\Entities\CashierShiftsEntity;
 use Okay\Modules\Sviat\Checkbox\Entities\TaxGroupsEntity;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxHelper;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxReceiptSet;
-use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxPaymentForm;
+use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxPaymentSources;
 use Okay\Modules\Sviat\Checkbox\Init\Init;
 
 /** Хуки адмін-панелі: чеки замовлень, зміни, податки, способи оплати */
@@ -139,27 +139,11 @@ class BackendExtender implements ExtensionInterface
             'sale'         => !$dontSend && !$chainBlocksSale && !$hasSaleReceipt,
             'return'       => !$dontSend && !$chainBlocksSale && $hasSaleReceipt,
         ]);
-        // Джерела віддаємо готовими: назва для людини, і — головне — мітка,
-        // яка реально надрукується в рядку 19 чека. Без неї менеджер обирає
-        // наосліп і бачить фіскальний наслідок лише постфактум.
-        // Ключі перекладів — літерали, а не конкатенація: TranslationKeysTest
-        // збирає їх грепом, і динамічний ключ знешкоджує саме ту перевірку,
-        // заради якої тест існує.
-        $sourceLabels = [
-            CheckboxPaymentForm::SOURCE_BANK_ACCOUNT => $this->backendTranslations->getTranslation('sviat__checkbox__source_bank_account'),
-            CheckboxPaymentForm::SOURCE_CARD         => $this->backendTranslations->getTranslation('sviat__checkbox__source_card'),
-            CheckboxPaymentForm::SOURCE_NOVAPAY      => $this->backendTranslations->getTranslation('sviat__checkbox__source_novapay'),
-            CheckboxPaymentForm::SOURCE_CASH         => $this->backendTranslations->getTranslation('sviat__checkbox__source_cash'),
-        ];
-
-        $sources = [];
-        foreach (CheckboxPaymentForm::sources() as $source) {
-            $sources[] = [
-                'key'          => $source,
-                'label'        => $sourceLabels[$source] ?? $source,
-                'receiptLabel' => CheckboxPaymentForm::receiptLabel($source),
-            ];
-        }
+        // Пункт списку — це рівно та мітка, яка надрукується в рядку 19 чека.
+        // Окремої «назви для менеджера» немає навмисне: два різні написи на
+        // один вибір змушували читати обидва, а фіскальний наслідок має один.
+        $sourcesConfig = CheckboxPaymentSources::decode($this->settings->get(Init::ADVANCE_SOURCES));
+        $sources = CheckboxPaymentSources::visible($sourcesConfig);
         $this->design->assign('checkboxSources', $sources);
 
         // Технічний статус з API — не текст для людини. Поруч із ним іде рядок
@@ -218,10 +202,16 @@ class BackendExtender implements ExtensionInterface
 
         // Рішення R4: джерело коштів для кнопки післяплати рахує PHP. Шаблон його
         // не вгадує — помилка тут стала б хибним рядком 19 у фіскальному чеку.
-        $this->design->assign(
-            'checkboxAfterPaymentSource',
-            $this->checkboxHelper->orderPaymentSource((int)$order->id)
-        );
+        //
+        // Виведене зі способу оплати джерело магазин міг прибрати зі списку. Тоді
+        // жоден пункт не позначено обраним, select віддає порожнє значення, і
+        // кнопка післяплати відмовляє без видимої причини — тож підставляємо
+        // перше з наявних.
+        $afterPaymentSource = $this->checkboxHelper->orderPaymentSource((int)$order->id);
+        if (!in_array($afterPaymentSource, array_column($sources, 'key'), true)) {
+            $afterPaymentSource = $sources[0]['key'] ?? '';
+        }
+        $this->design->assign('checkboxAfterPaymentSource', $afterPaymentSource);
     }
 
     /** Хук картки товару: передає всі групи ПДВ і прив'язані до товару. */
@@ -244,7 +234,11 @@ class BackendExtender implements ExtensionInterface
     public function postProduct($product): void
     {
         $taxGroupsEntity = $this->entityFactory->get(TaxGroupsEntity::class);
-        $productTaxes = $this->request->post('checkboxTaxes', 'array') ?? [];
+        // Без типу навмисно: 'array' у Request::post типом не є. Будь-який
+        // непорожній $type згортає масив до першого елемента, тож звідси
+        // приходив рядок, далі не проходив перевірку is_array — і збереження
+        // товару стирало всі його групи ПДВ, нічого не записавши натомість.
+        $productTaxes = $this->request->post('checkboxTaxes');
         if (!is_array($productTaxes)) {
             $productTaxes = [];
         }
