@@ -173,6 +173,60 @@
         </div>
     </div>
 
+    {*Секція номера замовлення в чеку авансу*}
+    <div class="row">
+        <div class="col-lg-12 col-md-12">
+            <div class="boxed fn_toggle_wrap">
+                <div class="heading_box">
+                    {$btr->sviat__checkbox__chain_id_settings|escape}
+                    <i class="fn_tooltips" title="{$btr->sviat__checkbox__chain_id_limits|escape}">
+                        {include file='svg_icon.tpl' svgId='icon_tooltips'}
+                    </i>
+                    <div class="toggle_arrow_wrap fn_toggle_card text-primary">
+                        <a class="btn-minimize" href="javascript:;">
+                            <i class="fa fn_icon_arrow fa-angle-down"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="toggle_body_wrap on fn_card">
+                    <p class="sviat__checkbox_sources__intro">{$btr->sviat__checkbox__chain_id_help|escape}</p>
+
+                    <div class="row">
+                        <div class="col-md-5">
+                            <div class="heading_label">{$btr->sviat__checkbox__chain_id_format|escape}</div>
+                            <div class="mb-1">
+                                <select class="form-control selectpicker fn-checkbox-chain-format" name="sviat__checkbox__chain_format">
+                                    <option value="prefix"{if $checkbox_chain_format != 'digits'} selected{/if}>
+                                        {$btr->sviat__checkbox__chain_id_format_prefix|escape}
+                                    </option>
+                                    <option value="digits"{if $checkbox_chain_format == 'digits'} selected{/if}>
+                                        {$btr->sviat__checkbox__chain_id_format_digits|escape}
+                                    </option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4 fn-checkbox-chain-prefix-field{if $checkbox_chain_format == 'digits'} hidden{/if}">
+                            <div class="heading_label">{$btr->sviat__checkbox__chain_id_prefix|escape}</div>
+                            <div class="mb-1">
+                                <input name="sviat__checkbox__chain_prefix" class="form-control fn-checkbox-chain-prefix"
+                                       type="text" maxlength="32" value="{$checkbox_chain_prefix|escape}" />
+                            </div>
+                        </div>
+                    </div>
+
+                    {* Доповнення нулями неочевидне: «order-» і замовлення №7 дають
+                       «order-0007», бо десять символів — межа Checkbox. Хай це
+                       буде видно до збереження, а не в готовому чеку. *}
+                    <div class="sviat__checkbox_sources__preview">
+                        <span class="sviat__checkbox_sources__preview_label">{$btr->sviat__checkbox__chain_id_preview|escape}:</span>
+                        <span class="fn-checkbox-chain-preview"
+                              data-digits="{$checkbox_chain_example_digits|escape}">{if $checkbox_chain_format == 'digits'}{$checkbox_chain_example_digits|escape}{else}{$checkbox_chain_example_prefix|escape}{/if}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     {*Секція джерел коштів для авансу*}
     <div class="row">
         <div class="col-lg-12 col-md-12">

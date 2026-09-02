@@ -43,6 +43,9 @@ class Init extends AbstractInit
 
     public const ADVANCE_SOURCES = 'sviat__checkbox__advance_sources';
 
+    public const CHAIN_FORMAT = 'sviat__checkbox__chain_format';
+    public const CHAIN_PREFIX = 'sviat__checkbox__chain_prefix';
+
     public function install()
     {
         $this->setBackendMainController('CheckboxAdmin');
