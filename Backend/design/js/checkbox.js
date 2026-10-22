@@ -443,7 +443,14 @@ $(document).on('submit', 'form', function(e){
 
     e.preventDefault();
     e.stopImmediatePropagation();
+    $marker.removeClass('hidden');
     toastr.error($marker.data('message'));
     $('html, body').animate({scrollTop: $payment.closest('.okay_list_row').offset().top - 120}, 200);
     $payment.closest('.boxes_inline').find('.dropdown-toggle').trigger('focus');
+});
+
+$(document).on('change', 'select[name="payment_method_id"]', function(){
+    if (parseInt($(this).val(), 10) > 0) {
+        $(this).closest('form').find('.fn-sviat-checkbox-payment-required').addClass('hidden');
+    }
 });
