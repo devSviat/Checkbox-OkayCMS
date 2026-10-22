@@ -427,9 +427,9 @@ $(function(){
 
 });
 
-// Перемикач «спосіб оплати обов'язковий при створенні» (налаштування модуля).
-// Сервер теж відмовить (BackendExtender::requirePaymentOnCreate), але редиректом,
-// тобто з утратою введеного замовлення — тому спершу тут.
+// Перемикач «спосіб оплати обов'язковий у замовленні» (налаштування модуля).
+// Сервер теж відмовить (BackendExtender::requirePaymentMethod), але редиректом,
+// тобто з утратою введених змін — тому спершу тут.
 $(document).on('submit', 'form', function(e){
     let $marker = $(this).find('.fn-sviat-checkbox-payment-required');
     if (!$marker.length) {

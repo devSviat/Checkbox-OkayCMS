@@ -5,20 +5,20 @@ declare(strict_types=1);
 namespace Okay\Modules\Sviat\Checkbox\Helpers;
 
 /**
- * Чи можна створити замовлення в адмінці без способу оплати.
+ * Чи можна зберегти замовлення в адмінці без способу оплати.
  *
  * Без способу оплати Checkbox не знає, якою формою фіскалізувати чек, тож
- * перемикач у налаштуваннях модуля таке створення забороняє. Редагування
- * наявного замовлення не зачіпається: вимога стосується лише створення.
+ * перемикач у налаштуваннях модуля забороняє зберігати таке замовлення — і
+ * нове, і наявне.
  */
 final class CheckboxOrderPaymentGuard
 {
     /**
      * @param object $order замовлення з BackendOrdersRequest::postOrder()
      */
-    public static function blocksCreation(bool $enabled, $order): bool
+    public static function blocksSave(bool $enabled, $order): bool
     {
-        if (!$enabled || !empty($order->id)) {
+        if (!$enabled) {
             return false;
         }
 

@@ -53,18 +53,18 @@ class BackendExtender implements ExtensionInterface
     }
 
     /**
-     * Не дає OrderAdmin створити замовлення без способу оплати, коли це
-     * вимкнено в налаштуваннях модуля. Редирект завершує запит до add(), тож
-     * замовлення не з'являється; помилка переживає редирект через сесію.
-     * Основний захист — перевірка форми в checkbox.js: тут введене губиться.
+     * Не дає OrderAdmin зберегти замовлення без способу оплати, коли це
+     * увімкнено в налаштуваннях модуля. Редирект завершує запит до add() чи
+     * update(), тож у базу нічого не пишеться; помилка переживає редирект через
+     * сесію. Основний захист — перевірка форми в checkbox.js: тут введене губиться.
      *
      * @param object $order
      * @return object
      */
-    public function requirePaymentOnCreate($order)
+    public function requirePaymentMethod($order)
     {
-        $enabled = (bool) $this->settings->get(Init::REQUIRE_PAYMENT_ON_CREATE);
-        if (CheckboxOrderPaymentGuard::blocksCreation($enabled, $order)) {
+        $enabled = (bool) $this->settings->get(Init::REQUIRE_PAYMENT_METHOD);
+        if (CheckboxOrderPaymentGuard::blocksSave($enabled, $order)) {
             $this->postRedirectGet->storeMessageError(
                 (string) $this->backendTranslations->getTranslation('sviat__checkbox__payment_required_error')
             );

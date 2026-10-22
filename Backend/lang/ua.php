@@ -172,10 +172,10 @@ $lang['sviat__checkbox__installed_at'] = 'Дата початку пошуку �
 $lang['sviat__checkbox__installed_at_description'] = 'Чеки створюватимуться лише для ТТН, оновлених після цієї дати. Змінюйте лише якщо потрібно обробити старіші замовлення.';
 $lang['sviat__checkbox__installed_at_placeholder'] = 'YYYY-MM-DD HH:MM:SS';
 
-$lang['sviat__checkbox__require_payment_on_create'] = 'Спосіб оплати обов\'язковий при створенні замовлення';
-$lang['sviat__checkbox__require_payment_on_create_tooltip'] = 'Менеджер не зможе створити замовлення в адмінці, не обравши спосіб оплати. Редагування наявних замовлень не зачіпається.';
-$lang['sviat__checkbox__payment_required_hint'] = 'Обов\'язково для нового замовлення';
-$lang['sviat__checkbox__payment_required_error'] = 'Оберіть спосіб оплати: без нього замовлення не буде створено.';
+$lang['sviat__checkbox__require_payment_method'] = 'Спосіб оплати обов\'язковий у замовленні';
+$lang['sviat__checkbox__require_payment_method_tooltip'] = 'Менеджер не зможе створити чи зберегти замовлення в адмінці, не обравши спосіб оплати.';
+$lang['sviat__checkbox__payment_required_hint'] = 'Обов\'язково';
+$lang['sviat__checkbox__payment_required_error'] = 'Оберіть спосіб оплати: без нього замовлення не буде збережено.';
 $lang['sviat__checkbox__create_receipt_on_received'] = 'Створювати чек при отриманні Новою Поштою';
 $lang['sviat__checkbox__create_receipt_on_received_no'] = 'Не створювати';
 $lang['sviat__checkbox__create_receipt_on_received_yes'] = 'Створювати автоматично';
