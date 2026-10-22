@@ -763,3 +763,12 @@
     gap: 10px;
     justify-content: flex-end;
 }
+
+/* Зірочка біля «Оплата», коли спосіб оплати обов'язковий. Підпис у ядрі не має
+   свого класу, тож він знаходиться через блок модуля в тій самій комірці.
+   --ok-danger є лише у форку; у стоці діє запасний колір. */
+.okay_list_ordfig_name:has(.fn-sviat-checkbox-payment-required) > .text_600::after {
+    content: '*';
+    margin-left: 2px;
+    color: var(--ok-danger, #c8352c);
+}
