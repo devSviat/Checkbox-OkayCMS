@@ -46,7 +46,9 @@
 
 ## Вимоги
 
-- OkayCMS v4.5.3 (чиста або [форк](https://github.com/devSviat/OkayCMS)); PHP 7.4 або 8.1–8.5
+- PHP 8.3+
+- OkayCMS 4.5.3 (чиста або [форк](https://github.com/devSviat/OkayCMS))
+- Перевірено на PHP 8.5 — на чистій OkayCMS 4.5.3 і на форку
 - Обліковий запис касира на [my.checkbox.ua](https://my.checkbox.ua) (логін, пароль, ліцензійний ключ каси)
 - Модуль [**NovaPoshtaTracking**](https://github.com/devSviat/NovaPoshtaTracking-OkayCMS) (опціонально — для автоматичної фіскалізації при отриманні Новою Поштою)
 
