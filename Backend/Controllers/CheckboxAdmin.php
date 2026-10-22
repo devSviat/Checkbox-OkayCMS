@@ -34,6 +34,7 @@ class CheckboxAdmin extends IndexAdmin
             $this->settings->set('sviat__checkbox__cashier_password', $this->request->post('sviat__checkbox__cashier_password'));
             $this->settings->set('sviat__checkbox__cashier_license_key', $this->request->post('sviat__checkbox__cashier_license_key'));
             $this->saveAdvanceSources();
+            $this->settings->set(Init::REQUIRE_PAYMENT_ON_CREATE, $this->request->post(Init::REQUIRE_PAYMENT_ON_CREATE, 'integer') ? 1 : 0);
 
             // Префікс читається сирим: фільтр рядка лишає лише літери, цифри
             // та `_ - . %`, а двокрапку й решту пунктуації вирізає мовчки.

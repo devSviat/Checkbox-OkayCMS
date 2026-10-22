@@ -46,6 +46,8 @@ class Init extends AbstractInit
     public const CHAIN_FORMAT = 'sviat__checkbox__chain_format';
     public const CHAIN_PREFIX = 'sviat__checkbox__chain_prefix';
 
+    public const REQUIRE_PAYMENT_ON_CREATE = 'sviat__checkbox__require_payment_on_create';
+
     public function install()
     {
         $this->setBackendMainController('CheckboxAdmin');
@@ -285,10 +287,17 @@ class Init extends AbstractInit
         $this->addBackendBlock('product_relations', 'fiscal_receipt_product_taxes.tpl');
         $this->addBackendBlock('orders_list_name', 'fiscal_receipt_order_last_receipt.tpl');
         $this->addBackendBlock('order_custom_block', 'fiscal_receipt_order_block.tpl');
+        $this->addBackendBlock('order_payment_info', 'checkbox_order_payment_required.tpl');
         // Форма накладної не знає про аванс: там одне поле задає і страхову
         // вартість, і суму до сплати при отриманні.
         $this->addBackendBlock('novaposhta_document_payment', 'fiscal_receipt_np_advance_notice.tpl');
 
+        // Без способу оплати Checkbox не знає форми фіскалізації. prepareAdd —
+        // останній хук перед вставкою в OrderAdmin, і він є і у форку, і в стоці.
+        $this->registerChainExtension(
+            ['class' => BackendOrdersHelper::class, 'method' => 'prepareAdd'],
+            ['class' => BackendExtender::class,     'method' => 'requirePaymentOnCreate']
+        );
         $this->registerQueueExtension(
             ['class' => BackendOrdersHelper::class, 'method' => 'changeStatus'],
             ['class' => BackendExtender::class,     'method' => 'changeStatus']
