@@ -417,6 +417,23 @@
                             </div>
                         </div>
                     </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="heading_label">
+                                <span>{$btr->sviat__checkbox__require_payment_method|escape}</span>
+                                <i class="fn_tooltips" title="{$btr->sviat__checkbox__require_payment_method_tooltip|escape}">
+                                    {include file='svg_icon.tpl' svgId='icon_tooltips'}
+                                </i>
+                            </div>
+                            <div class="mb-1">
+                                <label class="switch switch-default">
+                                    <input class="switch-input" type="checkbox" name="sviat__checkbox__require_payment_method" value="1"{if $settings->sviat__checkbox__require_payment_method} checked{/if}>
+                                    <span class="switch-label"></span>
+                                    <span class="switch-handle"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

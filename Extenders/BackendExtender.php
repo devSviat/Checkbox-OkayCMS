@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Okay\Modules\Sviat\Checkbox\Extenders;
 
+use Okay\Core\BackendPostRedirectGet;
 use Okay\Core\BackendTranslations;
 use Okay\Core\Design;
 use Okay\Core\EntityFactory;
@@ -17,6 +18,7 @@ use Okay\Modules\Sviat\Checkbox\Entities\CashierShiftsEntity;
 use Okay\Modules\Sviat\Checkbox\Entities\TaxGroupsEntity;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxCardActions;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxHelper;
+use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxOrderPaymentGuard;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxReceiptSet;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxPaymentSources;
 use Okay\Modules\Sviat\Checkbox\Init\Init;
@@ -30,6 +32,7 @@ class BackendExtender implements ExtensionInterface
     private EntityFactory $entityFactory;
     private CheckboxHelper $checkboxHelper;
     private BackendTranslations $backendTranslations;
+    private BackendPostRedirectGet $postRedirectGet;
 
     public function __construct(
         Design $design,
@@ -37,7 +40,8 @@ class BackendExtender implements ExtensionInterface
         Settings $settings,
         EntityFactory $entityFactory,
         CheckboxHelper $checkboxHelper,
-        BackendTranslations $backendTranslations
+        BackendTranslations $backendTranslations,
+        BackendPostRedirectGet $postRedirectGet
     ) {
         $this->design = $design;
         $this->request = $request;
@@ -45,6 +49,29 @@ class BackendExtender implements ExtensionInterface
         $this->entityFactory = $entityFactory;
         $this->checkboxHelper = $checkboxHelper;
         $this->backendTranslations = $backendTranslations;
+        $this->postRedirectGet = $postRedirectGet;
+    }
+
+    /**
+     * Не дає OrderAdmin зберегти замовлення без способу оплати, коли це
+     * увімкнено в налаштуваннях модуля. Редирект завершує запит до add() чи
+     * update(), тож у базу нічого не пишеться; помилка переживає редирект через
+     * сесію. Основний захист — перевірка форми в checkbox.js: тут введене губиться.
+     *
+     * @param object $order
+     * @return object
+     */
+    public function requirePaymentMethod($order)
+    {
+        $enabled = (bool) $this->settings->get(Init::REQUIRE_PAYMENT_METHOD);
+        if (CheckboxOrderPaymentGuard::blocksSave($enabled, $order)) {
+            $this->postRedirectGet->storeMessageError(
+                (string) $this->backendTranslations->getTranslation('sviat__checkbox__payment_required_error')
+            );
+            $this->postRedirectGet->redirect();
+        }
+
+        return $order;
     }
 
     /**

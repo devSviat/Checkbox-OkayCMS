@@ -426,3 +426,24 @@ $(function(){
     });
 
 });
+
+// Перемикач «спосіб оплати обов'язковий у замовленні» (налаштування модуля).
+// Сервер теж відмовить (BackendExtender::requirePaymentMethod), але редиректом,
+// тобто з утратою введених змін — тому спершу тут.
+$(document).on('submit', 'form', function(e){
+    let $marker = $(this).find('.fn-sviat-checkbox-payment-required');
+    if (!$marker.length) {
+        return;
+    }
+
+    let $payment = $(this).find('select[name="payment_method_id"]');
+    if (parseInt($payment.val(), 10) > 0) {
+        return;
+    }
+
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    toastr.error($marker.data('message'));
+    $('html, body').animate({scrollTop: $payment.closest('.okay_list_row').offset().top - 120}, 200);
+    $payment.closest('.boxes_inline').find('.dropdown-toggle').trigger('focus');
+});

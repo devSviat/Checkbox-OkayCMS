@@ -171,6 +171,10 @@ $lang['sviat__checkbox__installed_at'] = 'Дата начала поиска Т�
 $lang['sviat__checkbox__installed_at_description'] = 'Чеки будут создаваться только для ТТН, обновлённых после этой даты. Изменяйте только если нужно обработать более старые заказы.';
 $lang['sviat__checkbox__installed_at_placeholder'] = 'YYYY-MM-DD HH:MM:SS';
 
+$lang['sviat__checkbox__require_payment_method'] = 'Payment method required in orders';
+$lang['sviat__checkbox__require_payment_method_tooltip'] = 'A manager cannot create or save an order in the admin panel without choosing a payment method.';
+$lang['sviat__checkbox__payment_required_hint'] = 'Required';
+$lang['sviat__checkbox__payment_required_error'] = 'Choose a payment method: the order will not be saved without it.';
 $lang['sviat__checkbox__create_receipt_on_received'] = 'Создавать чек при получении Новой Почтой';
 $lang['sviat__checkbox__create_receipt_on_received_no'] = 'Не создавать';
 $lang['sviat__checkbox__create_receipt_on_received_yes'] = 'Создавать автоматически';

@@ -2,6 +2,7 @@
 
 namespace Okay\Modules\Sviat\Checkbox;
 
+use Okay\Core\BackendPostRedirectGet;
 use Okay\Core\BackendTranslations;
 use Okay\Core\Design;
 use Okay\Core\EntityFactory;
@@ -59,6 +60,7 @@ return [
             new SR(EntityFactory::class),
             new SR(CheckboxHelper::class),
             new SR(BackendTranslations::class),
+            new SR(BackendPostRedirectGet::class),
         ],
     ],
     FrontExtender::class => [
