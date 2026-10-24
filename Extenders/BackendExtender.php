@@ -372,7 +372,7 @@ class BackendExtender implements ExtensionInterface
         }
 
         $ordersEntity = $this->entityFactory->get(OrdersEntity::class);
-        $orders = $ordersEntity->mappedBy('id')->find(['id' => array_map('intval', $ids)]);
+        $orders = $ordersEntity->mappedBy('id')->find(['id' => array_map(intval(...), $ids)]);
         if (empty($orders)) {
             return;
         }
@@ -413,7 +413,7 @@ class BackendExtender implements ExtensionInterface
             if (empty($hasSaleReceiptMap[(int)$order->id])) {
                 try {
                     $this->checkboxHelper->fiscaliseOrder((int)$order->id);
-                } catch (\Exception $e) {
+                } catch (\Exception) {
                     continue;
                 }
             }

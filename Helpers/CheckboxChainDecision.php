@@ -11,16 +11,16 @@ namespace Okay\Modules\Sviat\Checkbox\Helpers;
  */
 final class CheckboxChainDecision
 {
-    const ACTION_SALE          = 'sale';
-    const ACTION_AFTER_PAYMENT = 'after_payment';
-    const ACTION_NONE          = 'none';
+    const string ACTION_SALE          = 'sale';
+    const string ACTION_AFTER_PAYMENT = 'after_payment';
+    const string ACTION_NONE          = 'none';
 
     /**
      * Ланцюжок у замовлення є, але Checkbox не сказав, у якому він стані.
      * Це не те саме, що «ланцюжка немає»: null тут означав би дозвіл виставити
      * повний чек продажу поверх уже сплаченого авансу.
      */
-    const STATUS_UNKNOWN = 'unknown';
+    const string STATUS_UNKNOWN = 'unknown';
 
     /**
      * @param string|null $chainStatus pre_payment_status ланцюжка; null — лише

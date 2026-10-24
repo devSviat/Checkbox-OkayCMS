@@ -27,16 +27,16 @@ namespace Okay\Modules\Sviat\Checkbox\Helpers;
 final class CheckboxChainId
 {
     /** Межі поля custom_relation_id у схемі Checkbox. */
-    const MIN_LENGTH = 10;
-    const MAX_LENGTH = 256;
+    const int MIN_LENGTH = 10;
+    const int MAX_LENGTH = 256;
 
-    const FORMAT_PREFIX = 'prefix';
-    const FORMAT_DIGITS = 'digits';
+    const string FORMAT_PREFIX = 'prefix';
+    const string FORMAT_DIGITS = 'digits';
 
-    const DEFAULT_PREFIX = 'prepayment-';
+    const string DEFAULT_PREFIX = 'prepayment-';
 
     /** Довший префікс не лишає місця під номер і нічого не додає по суті. */
-    const PREFIX_MAX_LENGTH = 32;
+    const int PREFIX_MAX_LENGTH = 32;
 
     /**
      * @param int $existingChains скільки ланцюжків це замовлення вже мало
@@ -45,7 +45,7 @@ final class CheckboxChainId
      */
     public static function build(int $orderId, int $existingChains = 0, ?string $prefix = null): string
     {
-        $prefix = $prefix === null ? '' : $prefix;
+        $prefix ??= '';
         $suffix = $existingChains > 0 ? '-' . ($existingChains + 1) : '';
 
         // Номер доповнюється нулями рівно настільки, щоб дотягнути до мінімуму

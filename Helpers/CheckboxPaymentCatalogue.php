@@ -30,14 +30,14 @@ namespace Okay\Modules\Sviat\Checkbox\Helpers;
  */
 final class CheckboxPaymentCatalogue
 {
-    const TYPE_CASH     = 'CASH';
-    const TYPE_CASHLESS = 'CASHLESS';
+    const string TYPE_CASH     = 'CASH';
+    const string TYPE_CASHLESS = 'CASHLESS';
 
     /** Розділювач між засобом платежу та назвою платіжної системи в ключі. */
-    const NAME_SEPARATOR = ':';
+    const string NAME_SEPARATOR = ':';
 
     /** Обмеження поля label у Checkbox. */
-    const LABEL_MAX_LENGTH = 128;
+    const int LABEL_MAX_LENGTH = 128;
 
     /**
      * Ключ → [форма оплати, мітка за замовчуванням].
@@ -77,7 +77,7 @@ final class CheckboxPaymentCatalogue
      * Без інтегратора: його мітка потребує назви платіжної системи, а вгадати
      * її не можна.
      */
-    const DEFAULT_ENABLED = ['cash', 'bank_account', 'internet_banking'];
+    const array DEFAULT_ENABLED = ['cash', 'bank_account', 'internet_banking'];
 
     /**
      * Засоби зі сценаріїв, які Checkbox описує для інтернет-торгівлі: термінал,
@@ -85,7 +85,7 @@ final class CheckboxPaymentCatalogue
      * замінники — у налаштуваннях згорнута: вісімнадцять рядків поспіль ховають
      * ті три, які магазину справді потрібні.
      */
-    const COMMON = [
+    const array COMMON = [
         'cash',
         'bank_account',
         'internet_banking',
@@ -199,7 +199,7 @@ final class CheckboxPaymentCatalogue
             return false;
         }
 
-        return strpos(self::$catalogue[$base][1], '<') !== false;
+        return str_contains(self::$catalogue[$base][1], '<');
     }
 
     /**

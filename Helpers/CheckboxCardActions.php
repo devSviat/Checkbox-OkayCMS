@@ -21,7 +21,7 @@ final class CheckboxCardActions
      * Стани, у яких ланцюжок уже нічого не тримає: гроші повернуто, і
      * замовлення повертається до звичайного шляху.
      */
-    const CLOSED_STATUSES = ['CANCELLED', 'PARTIAL_CANCELLED'];
+    const array CLOSED_STATUSES = ['CANCELLED', 'PARTIAL_CANCELLED'];
 
     /**
      * @param string|null $chainStatus стан ланцюжка або null, якщо його немає
