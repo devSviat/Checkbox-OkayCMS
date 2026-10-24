@@ -169,6 +169,7 @@
 }
 
 .sviat__checkbox_table_wrapper {
+    overflow-x: auto;
     min-height: 98px;
     border: 1px solid #eee;
     border-radius: 8px;
