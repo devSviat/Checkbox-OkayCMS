@@ -22,9 +22,9 @@ final class CheckboxPaymentForm
      * замовлення, тож вони мусять лишатися чинними навіть тоді, коли магазин
      * прибрав їх зі списку на картці.
      */
-    const SOURCE_BANK_ACCOUNT = 'bank_account';
-    const SOURCE_INTEGRATOR   = 'integrator';
-    const SOURCE_CASH         = 'cash';
+    const string SOURCE_BANK_ACCOUNT = 'bank_account';
+    const string SOURCE_INTEGRATOR   = 'integrator';
+    const string SOURCE_CASH         = 'cash';
 
     public static function isKnown(string $source): bool
     {

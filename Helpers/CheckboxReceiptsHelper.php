@@ -337,9 +337,7 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
         // рівно тоді, коли падає Entity::find(). Запит на самий id проходив би
         // завжди — і захист мовчки нічого не захищав би.
         $columns = implode(', ', array_map(
-            function ($field) {
-                return '`' . $field . '`';
-            },
+            fn($field) => '`' . $field . '`',
             FiscalReceiptsEntity::getFields()
         ));
 
@@ -482,7 +480,7 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
         }
 
         $leftToPay = (int)($chain['left_to_pay'] ?? 0);
-        $amount = $amountKopiyky === null ? $leftToPay : $amountKopiyky;
+        $amount = $amountKopiyky ?? $leftToPay;
         if ($amount <= 0 || $amount > $leftToPay) {
             return (object)['message' => $this->translations->getTranslation('sviat__checkbox__errors_after_payment_amount')];
         }
@@ -839,9 +837,7 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
         if (!empty($installedAt)) {
             $installedTimestamp = strtotime($installedAt);
             if ($installedTimestamp !== false) {
-                $trackings = array_filter($trackings, function ($tracking) use ($installedTimestamp) {
-                    return !empty($tracking->updated_at) && strtotime($tracking->updated_at) >= $installedTimestamp;
-                });
+                $trackings = array_filter($trackings, fn($tracking) => !empty($tracking->updated_at) && strtotime($tracking->updated_at) >= $installedTimestamp);
             }
         }
 
@@ -905,7 +901,7 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
         $receiptsEntity = $this->entityFactory->get(FiscalReceiptsEntity::class);
         $paymentsEntity = $this->entityFactory->get(PaymentsEntity::class);
 
-        $orders = $ordersEntity->mappedBy('id')->find(['id' => array_map('intval', $ids)]);
+        $orders = $ordersEntity->mappedBy('id')->find(['id' => array_map(intval(...), $ids)]);
 
         $purchasesCounts = [];
         foreach ($orders as $order) {

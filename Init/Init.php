@@ -53,26 +53,26 @@ class Init extends AbstractInit
         $this->setBackendMainController('CheckboxAdmin');
 
         $this->migrateEntityTable(TaxGroupsEntity::class, [
-            (new EntityField('id'))->setIndexPrimaryKey()->setTypeInt(11, false)->setAutoIncrement(),
-            (new EntityField('code'))->setTypeInt(11, false)->setIndex(),
-            (new EntityField('name'))->setTypeVarchar(255, false),
+            new EntityField('id')->setIndexPrimaryKey()->setTypeInt(11, false)->setAutoIncrement(),
+            new EntityField('code')->setTypeInt(11, false)->setIndex(),
+            new EntityField('name')->setTypeVarchar(255, false),
         ]);
 
         $this->migrateEntityTable(FiscalReceiptsEntity::class, [
-            (new EntityField('id'))->setIndexPrimaryKey()->setTypeInt(11, false)->setAutoIncrement(),
-            (new EntityField('order_id'))->setTypeInt(11, false),
-            (new EntityField('receipt_id'))->setTypeVarchar(64, false),
-            (new EntityField('related_receipt_id'))->setTypeVarchar(64, true),
-            (new EntityField('relation_id'))->setTypeVarchar(256, true),
-            (new EntityField('chain_status'))->setTypeVarchar(32, true),
-            (new EntityField('chain_paid_sum'))->setTypeInt(11, true),
-            (new EntityField('chain_total_sum'))->setTypeInt(11, true),
-            (new EntityField('receipt_type'))->setTypeVarchar(16, false)->setDefault(FiscalReceiptsEntity::TYPE_SALE),
-            (new EntityField('is_return'))->setTypeInt(1, false)->setDefault('0'),
-            (new EntityField('is_test'))->setTypeTinyInt(1, false)->setDefault('0'),
-            (new EntityField('sent'))->setTypeDatetime(true),
-            (new EntityField('created_at'))->setTypeTimestamp(true, null),
-            (new EntityField('updated_at'))->setTypeTimestamp(true, null),
+            new EntityField('id')->setIndexPrimaryKey()->setTypeInt(11, false)->setAutoIncrement(),
+            new EntityField('order_id')->setTypeInt(11, false),
+            new EntityField('receipt_id')->setTypeVarchar(64, false),
+            new EntityField('related_receipt_id')->setTypeVarchar(64, true),
+            new EntityField('relation_id')->setTypeVarchar(256, true),
+            new EntityField('chain_status')->setTypeVarchar(32, true),
+            new EntityField('chain_paid_sum')->setTypeInt(11, true),
+            new EntityField('chain_total_sum')->setTypeInt(11, true),
+            new EntityField('receipt_type')->setTypeVarchar(16, false)->setDefault(FiscalReceiptsEntity::TYPE_SALE),
+            new EntityField('is_return')->setTypeInt(1, false)->setDefault('0'),
+            new EntityField('is_test')->setTypeTinyInt(1, false)->setDefault('0'),
+            new EntityField('sent')->setTypeDatetime(true),
+            new EntityField('created_at')->setTypeTimestamp(true, null),
+            new EntityField('updated_at')->setTypeTimestamp(true, null),
         ]);
 
         // Складений індекс EntityField не вміє, тож окремим кроком — але тим
@@ -81,11 +81,11 @@ class Init extends AbstractInit
 
         $this->migrateEntityField(
             PaymentsEntity::class,
-            (new EntityField(self::PAYMENT_SKIP_FIELD))->setTypeTinyInt(1, false)->setDefault('0')
+            new EntityField(self::PAYMENT_SKIP_FIELD)->setTypeTinyInt(1, false)->setDefault('0')
         );
         $this->migrateEntityField(
             PaymentsEntity::class,
-            (new EntityField(self::PAYMENT_TYPE_FIELD))
+            new EntityField(self::PAYMENT_TYPE_FIELD)
                 // OTHER Checkbox не приймає: у схемі API його немає взагалі, і чек
                 // падає з 422 мовчки. CARD там позначений DEPRECATED і тотожний
                 // CASHLESS, але лишається валідним, тож наявні налаштування не ламаємо.
@@ -94,18 +94,18 @@ class Init extends AbstractInit
         );
 
         $this->migrateCustomTable(self::PRODUCT_TAX_GROUPS_TABLE, [
-            (new EntityField('product_id'))->setTypeInt(11, false)->setIndex(),
-            (new EntityField('tax_id'))->setTypeInt(11, false)->setIndex(),
+            new EntityField('product_id')->setTypeInt(11, false)->setIndex(),
+            new EntityField('tax_id')->setTypeInt(11, false)->setIndex(),
         ]);
 
         $this->migrateEntityTable(CashierShiftsEntity::class, [
-            (new EntityField('id'))->setIndexPrimaryKey()->setTypeInt(11, false)->setAutoIncrement(),
-            (new EntityField('shift_id'))->setTypeVarchar(64, false),
-            (new EntityField('serial'))->setTypeInt(11, false)->setDefault('0'),
-            (new EntityField('status'))->setTypeVarchar(32, false),
-            (new EntityField('shift_report_id'))->setTypeVarchar(64, false)->setDefault(''),
-            (new EntityField('opened_at'))->setTypeTimestamp(true, null),
-            (new EntityField('closed_at'))->setTypeTimestamp(true, null),
+            new EntityField('id')->setIndexPrimaryKey()->setTypeInt(11, false)->setAutoIncrement(),
+            new EntityField('shift_id')->setTypeVarchar(64, false),
+            new EntityField('serial')->setTypeInt(11, false)->setDefault('0'),
+            new EntityField('status')->setTypeVarchar(32, false),
+            new EntityField('shift_report_id')->setTypeVarchar(64, false)->setDefault(''),
+            new EntityField('opened_at')->setTypeTimestamp(true, null),
+            new EntityField('closed_at')->setTypeTimestamp(true, null),
         ]);
 
         // Складений PK для таблиці зв'язку — додається вручну. Видалення
@@ -115,11 +115,11 @@ class Init extends AbstractInit
 
         $this->migrateEntityField(
             ManagersEntity::class,
-            (new EntityField(self::CASHIER_LOGIN))->setTypeVarchar(255, true)
+            new EntityField(self::CASHIER_LOGIN)->setTypeVarchar(255, true)
         );
         $this->migrateEntityField(
             PaymentsEntity::class,
-            (new EntityField(self::PAYMENT_LABEL_FIELD))->setTypeVarchar(255)
+            new EntityField(self::PAYMENT_LABEL_FIELD)->setTypeVarchar(255)
         );
 
         // Фіксується один раз — нижня межа пошуку ТТН для автовиставлення чеків
@@ -145,7 +145,7 @@ class Init extends AbstractInit
         $this->migrateOtherPaymentTypeToCashless();
         $this->migrateEntityField(
             PaymentsEntity::class,
-            (new EntityField(self::PAYMENT_TYPE_FIELD))
+            new EntityField(self::PAYMENT_TYPE_FIELD)
                 ->setTypeEnum(['CASH', 'CARD', 'CASHLESS'], false)
                 ->setDefault('CASH')
         );
@@ -235,12 +235,12 @@ class Init extends AbstractInit
     private function prepaymentChainFields(): array
     {
         return [
-            (new EntityField('relation_id'))->setTypeVarchar(256, true),
-            (new EntityField('chain_status'))->setTypeVarchar(32, true),
-            (new EntityField('chain_paid_sum'))->setTypeInt(11, true),
-            (new EntityField('chain_total_sum'))->setTypeInt(11, true),
-            (new EntityField('receipt_type'))->setTypeVarchar(16, false)->setDefault(FiscalReceiptsEntity::TYPE_SALE),
-            (new EntityField('is_test'))->setTypeTinyInt(1, false)->setDefault('0'),
+            new EntityField('relation_id')->setTypeVarchar(256, true),
+            new EntityField('chain_status')->setTypeVarchar(32, true),
+            new EntityField('chain_paid_sum')->setTypeInt(11, true),
+            new EntityField('chain_total_sum')->setTypeInt(11, true),
+            new EntityField('receipt_type')->setTypeVarchar(16, false)->setDefault(FiscalReceiptsEntity::TYPE_SALE),
+            new EntityField('is_test')->setTypeTinyInt(1, false)->setDefault('0'),
         ];
     }
 
@@ -346,7 +346,7 @@ class Init extends AbstractInit
 
         // Cron: чеки для отриманих ТТН — через 2 хв після оновлення трекінгу
         $this->registerSchedule(
-            (new Schedule([CheckboxHelper::class, 'processReceivedOrders']))
+            new Schedule([CheckboxHelper::class, 'processReceivedOrders'])
                 ->name('Process received orders and create fiscal receipts')
                 ->time('2,12,22,32,42,52 * * * *')
                 ->overlap(false)
@@ -354,7 +354,7 @@ class Init extends AbstractInit
         );
         // Cron: закриття застарілих змін, оновлення CLOSING-статусів
         $this->registerSchedule(
-            (new Schedule([CheckboxHelper::class, 'cronCheckShifts']))
+            new Schedule([CheckboxHelper::class, 'cronCheckShifts'])
                 ->name('Check cashier shifts status')
                 ->time('*/5 * * * *')
                 ->overlap(false)

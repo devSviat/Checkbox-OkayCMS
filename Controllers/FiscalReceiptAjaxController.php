@@ -20,7 +20,7 @@ use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxReceiptPayloadBuilder;
 class FiscalReceiptAjaxController extends AbstractController
 {
     /** Те саме право, що й у бекендових контролерів модуля (див. Init). */
-    private const PERMISSION = 'sviat__checkbox';
+    private const string PERMISSION = 'sviat__checkbox';
 
     public function createShift(
         AdminIdentity $adminIdentity,

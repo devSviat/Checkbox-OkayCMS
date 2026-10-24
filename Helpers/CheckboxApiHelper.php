@@ -185,7 +185,7 @@ class CheckboxApiHelper
         $contentType = is_string($curlInfo['content_type'] ?? '') ? $curlInfo['content_type'] : '';
         if ($contentType === 'text/html; charset=utf-8'
             || $contentType === 'text/plain; charset=utf-8'
-            || strpos($contentType, 'application/pdf') !== false) {
+            || str_contains($contentType, 'application/pdf')) {
             return $data;
         }
 
