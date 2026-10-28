@@ -220,6 +220,10 @@
     color: #2c2c2c;
     word-break: break-all;
     text-decoration: none;
+    display: inline-block;
+    /* Без нижньої межі break-all дає таблиці стиснути UUID до символу в рядок;
+       на вузькому екрані решту ширини бере горизонтальна прокрутка обгортки. */
+    min-width: 18ch;
 }
 
 .sviat__checkbox_receipt_id_value:hover {
@@ -253,10 +257,7 @@
 }
 
 .sviat__checkbox_actions_menu {
-    position: absolute;
-    top: 100%;
-    right: 0;
-    margin-top: 4px;
+    position: fixed;
     min-width: 70px;
     background: #fff;
     border: 1px solid #eee;

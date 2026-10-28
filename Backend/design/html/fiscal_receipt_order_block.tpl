@@ -45,7 +45,7 @@
                                             <td>
                                                 {if $orderReceipt->receipt_id}
                                                     <a href=""
-                                                        class="fn_clipboard hint-bottom-middle-t-info-s-small-mobile sviat__checkbox_receipt_id_value"
+                                                        class="fn_clipboard hint-top-middle-t-info-s-small-mobile sviat__checkbox_receipt_id_value"
                                                         data-hint="Click to copy" data-hint-copied="✔ Copied to clipboard">
                                                         {$orderReceipt->receipt_id|escape}
                                                     </a>
