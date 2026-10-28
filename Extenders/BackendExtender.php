@@ -194,16 +194,6 @@ class BackendExtender implements ExtensionInterface
             $chainStatus === null ? '' : ($nextSteps[$chainStatus] ?? '')
         );
 
-        // Скільки лишилось узяти з клієнта при отриманні. Ім'я навмисне
-        // нейтральне: форма накладної підставляє це значення, не знаючи ні про
-        // Checkbox, ні про ланцюжок передплати.
-        $this->design->assign(
-            'orderAmountDueOnPickup',
-            ($chain !== null && $chainStatus === 'PARTIAL_PAID' && !empty($chain['left_to_pay']))
-                ? round((int)$chain['left_to_pay'] / 100, 2)
-                : null
-        );
-
         // Тестова й бойова каси відрізняються лише обліковими даними касира, і
         // з налаштувань режим не видно. Єдиний чесний сигнал — ознака, яку
         // Checkbox повернув на останньому виданому чеку. Вона запізнюється на
@@ -229,6 +219,27 @@ class BackendExtender implements ExtensionInterface
             $afterPaymentSource = $sources[0]['key'] ?? '';
         }
         $this->design->assign('checkboxAfterPaymentSource', $afterPaymentSource);
+    }
+
+    /**
+     * Сума до сплати при отриманні для накладної Нової Пошти: з отримувача береться
+     * лише те, що не покрито авансом. Оголошену цінність накладної це не змінює.
+     *
+     * @param float|int $amountDue
+     * @param object $order
+     */
+    public function amountDueOnPickup($amountDue, $order): float
+    {
+        $chain = $this->checkboxHelper->orderChainStatus((int) ($order->id ?? 0));
+        $status = $chain['pre_payment_status'] ?? null;
+        if ($status === 'FULL_PAID') {
+            return 0.0;
+        }
+        if ($status === 'PARTIAL_PAID' && $chain['left_to_pay'] !== null) {
+            return min((float) $amountDue, round($chain['left_to_pay'] / 100, 2));
+        }
+
+        return (float) $amountDue;
     }
 
     /** Хук картки товару: передає всі групи ПДВ і прив'язані до товару. */

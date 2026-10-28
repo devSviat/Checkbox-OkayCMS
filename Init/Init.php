@@ -26,6 +26,7 @@ use Okay\Modules\Sviat\Checkbox\Entities\TaxGroupsEntity;
 use Okay\Modules\Sviat\Checkbox\Extenders\BackendExtender;
 use Okay\Modules\Sviat\Checkbox\Entities\CashierShiftsEntity;
 use Okay\Modules\Sviat\Checkbox\Entities\FiscalReceiptsEntity;
+use Okay\Modules\Sviat\NovaPoshtaTracking\Helpers\NovaPoshtaPaymentHelper;
 
 class Init extends AbstractInit
 {
@@ -288,9 +289,17 @@ class Init extends AbstractInit
         $this->addBackendBlock('orders_list_name', 'fiscal_receipt_order_last_receipt.tpl');
         $this->addBackendBlock('order_custom_block', 'fiscal_receipt_order_block.tpl');
         $this->addBackendBlock('order_payment_info', 'checkbox_order_payment_required.tpl');
-        // Форма накладної не знає про аванс: там одне поле задає і страхову
-        // вартість, і суму до сплати при отриманні.
+        // Менеджер бачить, звідки в накладній узялась сума, менша за замовлення.
         $this->addBackendBlock('novaposhta_document_payment', 'fiscal_receipt_np_advance_notice.tpl');
+        // Модуль Нової Пошти може бути не встановлений або старої версії, а реєстрація
+        // на відсутній метод кидає виняток.
+        // @phpstan-ignore function.alreadyNarrowedType (у цьому дереві модуль є; на окремій інсталяції Checkbox — не обов'язково)
+        if (method_exists(NovaPoshtaPaymentHelper::class, 'amountDueOnPickup')) {
+            $this->registerChainExtension(
+                ['class' => NovaPoshtaPaymentHelper::class, 'method' => 'amountDueOnPickup'],
+                ['class' => BackendExtender::class,         'method' => 'amountDueOnPickup']
+            );
+        }
 
         // Без способу оплати Checkbox не знає форми фіскалізації. prepareAdd і
         // prepareUpdate — останні хуки перед записом в OrderAdmin; обидва є і у
