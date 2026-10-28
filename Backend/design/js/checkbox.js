@@ -142,7 +142,27 @@ $(function(){
         // Відкриваємо/закриваємо поточний
         if (!isOpen) {
             $dropdown.addClass('open');
+            placeActionsMenu($dropdown);
         }
+    });
+
+    // Таблиці прокручуються по горизонталі, а overflow-x: auto обрізає й вертикаль:
+    // меню всередині обгортки ховалося б і давало їй вертикальний скрол.
+    function placeActionsMenu($dropdown) {
+        const button = $dropdown.find('.sviat__checkbox_actions_btn')[0].getBoundingClientRect();
+        const $menu = $dropdown.find('.sviat__checkbox_actions_menu');
+        $menu.css({
+            top: button.bottom + 4,
+            left: Math.max(4, button.right - $menu.outerWidth())
+        });
+    }
+
+    // Fixed-меню не їде разом зі сторінкою, тож при прокрутці його закриваємо.
+    window.addEventListener('scroll', function(){
+        $('.sviat__checkbox_actions_dropdown').removeClass('open');
+    }, true);
+    $(window).on('resize', function(){
+        $('.sviat__checkbox_actions_dropdown').removeClass('open');
     });
 
     // Закриваємо dropdown при кліку поза ним
