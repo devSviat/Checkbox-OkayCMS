@@ -7,6 +7,7 @@ namespace Okay\Modules\Sviat\Checkbox\Backend\Controllers;
 use Okay\Admin\Controllers\IndexAdmin;
 use Okay\Core\EntityFactory;
 use Okay\Modules\Sviat\Checkbox\Entities\TaxGroupsEntity;
+use Okay\Modules\Sviat\Checkbox\Security\RequestOrigin;
 
 class TaxGroupsAdmin extends IndexAdmin
 {
@@ -15,6 +16,13 @@ class TaxGroupsAdmin extends IndexAdmin
         $taxGroupsEntity = $entityFactory->get(TaxGroupsEntity::class);
 
         if ($this->request->method('post')) {
+            if (!RequestOrigin::isFromThisSite()) {
+                $this->response->setStatusCode(403);
+                $this->response->setContent(json_encode(['message' => 'Forbidden']), RESPONSE_JSON);
+
+                return;
+            }
+
             $ids = $this->request->post('check');
             if (is_array($ids) && $this->request->post('action') === 'delete') {
                 $taxGroupsEntity->delete($ids);

@@ -12,6 +12,7 @@ $lang['sviat__checkbox__password'] = 'Password';
 $lang['sviat__checkbox__password_placeholder'] = 'Enter cashier password';
 $lang['sviat__checkbox__license_key'] = 'Cash register license key';
 $lang['sviat__checkbox__license_key_placeholder'] = 'Enter cash register license key';
+$lang['sviat__checkbox__secret_keep_placeholder'] = 'Leave blank to keep the current value';
 $lang['sviat__checkbox__receipt_text_placeholder'] = 'Text displayed at the bottom of the receipt (use {$order_id} to insert the order number)';
 $lang['sviat__checkbox__order_available_status'] = 'Automatically create and send receipt on status change';
 $lang['sviat__checkbox__no_status'] = 'No status selected';

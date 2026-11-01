@@ -7,6 +7,8 @@ namespace Okay\Modules\Sviat\Checkbox\Backend\Controllers;
 use Okay\Admin\Controllers\IndexAdmin;
 use Okay\Core\EntityFactory;
 use Okay\Modules\Sviat\Checkbox\Entities\TaxGroupsEntity;
+use Okay\Modules\Sviat\Checkbox\Security\RequestOrigin;
+use Okay\Modules\Sviat\Checkbox\Security\ReturnUrl;
 
 class TaxGroupAdmin extends IndexAdmin
 {
@@ -15,7 +17,16 @@ class TaxGroupAdmin extends IndexAdmin
         $taxGroupsEntity = $entityFactory->get(TaxGroupsEntity::class);
         $tax = new \stdClass();
 
+        $this->design->assign('checkboxReturnUrl', ReturnUrl::safe($this->request->get('return')));
+
         if ($this->request->method('post')) {
+            if (!RequestOrigin::isFromThisSite()) {
+                $this->response->setStatusCode(403);
+                $this->response->setContent(json_encode(['message' => 'Forbidden']), RESPONSE_JSON);
+
+                return;
+            }
+
             $taxId = $this->request->post('id', 'integer');
             $tax->id = $taxId > 0 ? $taxId : null;
             $tax->code = $this->request->post('code', 'integer');

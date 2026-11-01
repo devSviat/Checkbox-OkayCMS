@@ -14,6 +14,9 @@ use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxHelper;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxPaymentCatalogue;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxPaymentSources;
 use Okay\Modules\Sviat\Checkbox\Init\Init;
+use Okay\Modules\Sviat\Checkbox\Security\PlainSettingValue;
+use Okay\Modules\Sviat\Checkbox\Security\RequestOrigin;
+use Okay\Modules\Sviat\Checkbox\Security\ReturnUrl;
 
 class CheckboxAdmin extends IndexAdmin
 {
@@ -27,12 +30,19 @@ class CheckboxAdmin extends IndexAdmin
         // доходить сюди порожньою. Форма володіє всіма налаштуваннями модуля й
         // перезаписує їх цілком, тож порожній POST стирає облікові дані каси.
         if ($this->request->method('post') && $this->request->post('sviat__checkbox__settings_form')) {
-            $this->settings->set('sviat__checkbox__receipt_text', $this->request->post('sviat__checkbox__receipt_text'));
+            if (!RequestOrigin::isFromThisSite()) {
+                $this->response->setStatusCode(403);
+                $this->response->setContent(json_encode(['message' => 'Forbidden']), RESPONSE_JSON);
+
+                return;
+            }
+
+            $this->saveTextSetting('sviat__checkbox__receipt_text');
             $this->settings->set('sviat__checkbox__order_status_id', $this->request->post('sviat__checkbox__order_status_id', 'integer'));
             $this->settings->set('sviat__checkbox__send_message', $this->request->post('sviat__checkbox__send_message', 'integer'));
-            $this->settings->set('sviat__checkbox__cashier_login', $this->request->post('sviat__checkbox__cashier_login'));
-            $this->settings->set('sviat__checkbox__cashier_password', $this->request->post('sviat__checkbox__cashier_password'));
-            $this->settings->set('sviat__checkbox__cashier_license_key', $this->request->post('sviat__checkbox__cashier_license_key'));
+            $this->saveTextSetting('sviat__checkbox__cashier_login');
+            $this->saveSecretSetting('sviat__checkbox__cashier_password');
+            $this->saveSecretSetting('sviat__checkbox__cashier_license_key');
             $this->saveAdvanceSources();
             $this->settings->set(Init::REQUIRE_PAYMENT_METHOD, $this->request->post(Init::REQUIRE_PAYMENT_METHOD, 'integer') ? 1 : 0);
 
@@ -95,6 +105,9 @@ class CheckboxAdmin extends IndexAdmin
         $this->design->assign('orders_statuses', $orderStatusEntity->find());
         $this->design->assign('is_nova_poshta_tracking_installed', $modules->isActiveModule('Sviat', 'NovaPoshtaTracking'));
         $this->design->assign('checkbox_installed_at', $installedAtInput);
+        $this->design->assign('checkboxPasswordIsSet', (string) $this->settings->get('sviat__checkbox__cashier_password') !== '');
+        $this->design->assign('checkboxLicenseIsSet', (string) $this->settings->get('sviat__checkbox__cashier_license_key') !== '');
+        $this->design->assign('checkboxReturnUrl', ReturnUrl::safe($this->request->get('return')));
 
         $this->response->setContent($this->design->fetch('checkbox_admin.tpl'));
     }
@@ -141,5 +154,21 @@ class CheckboxAdmin extends IndexAdmin
         }
 
         $this->settings->set(Init::ADVANCE_SOURCES, CheckboxPaymentSources::encode($keys, $names));
+    }
+
+    private function saveTextSetting(string $name): void
+    {
+        $value = $this->request->post($name);
+        if (PlainSettingValue::isPlain($value)) {
+            $this->settings->set($name, $value);
+        }
+    }
+
+    /** Секрети не виводяться у форму, тому порожнє поле означає «без змін». */
+    private function saveSecretSetting(string $name): void
+    {
+        if ((string) $this->request->post($name) !== '') {
+            $this->saveTextSetting($name);
+        }
     }
 }

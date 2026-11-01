@@ -12,6 +12,7 @@ $lang['sviat__checkbox__password'] = 'Пароль';
 $lang['sviat__checkbox__password_placeholder'] = 'Введите пароль кассира';
 $lang['sviat__checkbox__license_key'] = 'Лицензионный ключ кассы';
 $lang['sviat__checkbox__license_key_placeholder'] = 'Введите лицензионный ключ кассы';
+$lang['sviat__checkbox__secret_keep_placeholder'] = 'Оставьте пустым, чтобы сохранить текущее значение';
 $lang['sviat__checkbox__receipt_text_placeholder'] = 'Текст, который будет отображаться в нижней части чека (можно использовать {$order_id} для подстановки номера заказа)';
 $lang['sviat__checkbox__order_available_status'] = 'Автоматическое формирование и отправка чека при изменении статуса';
 $lang['sviat__checkbox__no_status'] = 'Статус не выбран';
