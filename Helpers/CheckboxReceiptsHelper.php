@@ -26,8 +26,8 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
     private CheckboxShiftsHelper $shiftsHelper;
     private ?bool $receiptsTableReadable = null;
 
-    /** Скільки зависших рядків крон перевіряє за прохід. */
-    private const int RECONCILE_BATCH = 50;
+    /** Скільки зависших рядків крон перевіряє за прохід: на кожен іде запит до API. */
+    private const int RECONCILE_BATCH = 20;
 
     /** Вікно повтору після оплати, днів. */
     private const int RECONCILE_DAYS = 3;
@@ -223,10 +223,13 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
      */
     private function sendReceipt(int $orderId, bool $isReturn, ?int $receiptId, array $orderData)
     {
-        // Перевірка повторюється під блокуванням: перша могла пройти паралельно.
+        // Перевірки повторюються під блокуванням: перші могли пройти паралельно.
         $rows = $this->entityFactory->get(FiscalReceiptsEntity::class)->find(['order_id' => $orderId]);
         if (!$isReturn && CheckboxReceiptSet::hasSaleReceipt($rows)) {
             return (object)['message' => $this->translations->getTranslation('sviat__checkbox__errors_sale_exists')];
+        }
+        if (!$isReturn && $this->chainHoldsOrder($orderId)) {
+            return (object)['message' => $this->translations->getTranslation('sviat__checkbox__errors_chain_is_open')];
         }
         if ($isReturn) {
             $refusal = $this->returnRefusal($orderId);
@@ -238,12 +241,18 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
         $receiptsEntity = $this->entityFactory->get(FiscalReceiptsEntity::class);
         $relatedReceiptId = $isReturn ? $this->findLastSaleReceiptId($orderId) : null;
         $rowId = $receiptId ?? $this->findEmptyReceiptId($orderId, $isReturn);
-        $hadRow = $rowId !== null;
-        $row = $hadRow ? $receiptsEntity->findOne(['id' => $rowId]) : null;
-        $uuid = !empty($row->relation_id) ? (string)$row->relation_id : $this->uuid4();
+        $row = $rowId !== null ? $receiptsEntity->findOne(['id' => $rowId]) : null;
+        $reusedUuid = !empty($row->relation_id);
+        $uuid = $reusedUuid ? (string)$row->relation_id : $this->uuid4();
 
         $intent = $this->saveReceiptToDatabase([], $orderId, $isReturn, $rowId, $relatedReceiptId, null, $uuid);
-        $rowId = is_array($intent) && isset($intent['id']) ? (int)$intent['id'] : $rowId;
+        if (!is_array($intent) || ($intent['relation_id'] ?? null) !== $uuid) {
+            // SQL-помилки ковтаються: без збереженого id повтор створив би другий чек.
+            $this->logFailure('receipt intent not saved', ['order_id' => $orderId]);
+
+            return (object)['message' => $this->translations->getTranslation('sviat__checkbox__errors_order_busy')];
+        }
+        $rowId = (int)$intent['id'];
 
         $orderData['id'] = $uuid;
         [$outcome, $response] = $this->postReceipt($uuid, $orderData);
@@ -264,14 +273,42 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
             return (object)['message' => $this->errors['message'] ?? 'checkbox request failed'];
         }
 
-        // Заготовка лишається, коли зміну не вдалось відкрити: її підбере звірка в кроні.
-        if ($outcome === CheckboxApiOutcome::SHIFT_CLOSED || $hadRow) {
+        if ($outcome === CheckboxApiOutcome::DOCUMENT_FAILED) {
+            // Цей id назавжди повертатиме зіпсований документ, тож наступна спроба бере новий.
             $receiptsEntity->update($rowId, ['relation_id' => null]);
-        } elseif ($rowId !== null) {
-            $receiptsEntity->delete($rowId);
+
+            return (object)['message' => $this->translations->getTranslation('sviat__checkbox__errors_receipt_failed')];
+        }
+
+        // Відмова доводить відсутність чека лише для id цієї спроби: попередній запит
+        // із повторним id міг створити документ, тож такий id лишається.
+        if (!$reusedUuid) {
+            if ($outcome === CheckboxApiOutcome::SHIFT_CLOSED || $row !== null) {
+                $receiptsEntity->update($rowId, ['relation_id' => null]);
+            } else {
+                $receiptsEntity->delete($rowId);
+            }
         }
 
         return $response;
+    }
+
+    private function currentError(): ?string
+    {
+        if ($this->errors === []) {
+            return null;
+        }
+        $message = $this->errors['message'] ?? null;
+
+        return is_string($message) ? $message : 'checkbox request failed';
+    }
+
+    private function chainHoldsOrder(int $orderId): bool
+    {
+        $chain = $this->orderChainStatus($orderId);
+
+        return $chain !== null
+            && !in_array((string)$chain['pre_payment_status'], CheckboxCardActions::CLOSED_STATUSES, true);
     }
 
     /**
@@ -293,17 +330,32 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
             $outcome = CheckboxApiOutcome::of($this->errors, $response);
             if ($outcome !== CheckboxApiOutcome::SUCCESS) {
                 $outcome = CheckboxApiOutcome::UNKNOWN;
+            } elseif (self::documentHasError($response)) {
+                // Без фіскального коду документ у ДПС не потрапив, з кодом — стан незрозумілий.
+                $outcome = empty($response['fiscal_code']) ? CheckboxApiOutcome::DOCUMENT_FAILED : CheckboxApiOutcome::UNKNOWN;
             }
         }
 
         return [$outcome, $response];
     }
 
+    private static function documentHasError(array $response): bool
+    {
+        return strtoupper((string)($response['status'] ?? '')) === 'ERROR';
+    }
+
+    /**
+     * Якщо зміну не вдалось відкрити, лишає в errors відмову Checkbox: за нею
+     * викликачі вирішують долю документа, а стан спроби відкрити зміну про нього не каже.
+     */
     private function reopenShift(): bool
     {
+        $refusal = $this->errors;
         $this->clearErrors();
         $shift = $this->shiftsHelper->reopenAfterRemoteClose();
         if ($shift === null) {
+            $this->errors = $refusal;
+
             return false;
         }
         $this->clearErrors();
@@ -381,7 +433,7 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
     /**
      * Доводить до кінця чеки, що зависли: відповідь не дійшла або зміну не вдалось відкрити.
      *
-     * Лише свіжі оплати: давня заготовка на старому замовленні не має раптом стати чеком.
+     * Лише свіжі: давня заготовка на старому замовленні не має раптом стати чеком.
      */
     public function reconcilePendingReceipts(): void
     {
@@ -390,19 +442,20 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
         }
 
         $receiptsEntity = $this->entityFactory->get(FiscalReceiptsEntity::class);
-        $pending = $receiptsEntity->find(['receipt_id' => '', 'limit' => self::RECONCILE_BATCH]);
         $orderIds = [];
-        foreach ($pending as $row) {
-            $type = $row->receipt_type ?? FiscalReceiptsEntity::TYPE_SALE;
-            if ($type !== FiscalReceiptsEntity::TYPE_SALE && $type !== FiscalReceiptsEntity::TYPE_RETURN) {
-                continue;
+
+        $intents = $receiptsEntity->order('id_desc')->find(['pending_intent' => self::RECONCILE_DAYS, 'limit' => self::RECONCILE_BATCH]);
+        foreach ($intents as $row) {
+            $orderId = (int)$row->order_id;
+            $missing = $this->underOrderLock($orderId, fn () => $this->settleIntent($row));
+            if ($missing === true && ($row->receipt_type ?? null) === FiscalReceiptsEntity::TYPE_SALE) {
+                $orderIds[$orderId] = $orderId;
             }
-            if (!empty($row->relation_id) && !$this->settleIntent($row)) {
-                continue;
-            }
-            if ($type === FiscalReceiptsEntity::TYPE_SALE && empty($this->receiptExists((int)$row->id))) {
-                $orderIds[(int)$row->order_id] = (int)$row->order_id;
-            }
+        }
+
+        $placeholders = $receiptsEntity->order('id_desc')->find(['pending_placeholder' => 1, 'limit' => self::RECONCILE_BATCH]);
+        foreach ($placeholders as $row) {
+            $orderIds[(int)$row->order_id] = (int)$row->order_id;
         }
 
         $recentlyPaid = $this->recentlyPaidOrders(array_values($orderIds));
@@ -411,7 +464,12 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
         }
     }
 
-    /** @return bool true, якщо чека в Checkbox немає і замовлення можна фіскалізувати знову */
+    /**
+     * Звіряє намір із Checkbox під блокуванням: без нього 404 міг би прийти на чек,
+     * який ще створюється паралельним запитом.
+     *
+     * @return bool true, якщо чека в Checkbox немає
+     */
     private function settleIntent(object $row): bool
     {
         if (empty($this->accessToken)) {
@@ -421,32 +479,41 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
         $response = $this->makeApiRequest('receipts/' . rawurlencode((string)$row->relation_id), [], ['method' => 'GET']);
 
         if (CheckboxApiOutcome::of($this->errors, $response) === CheckboxApiOutcome::SUCCESS) {
-            $this->saveReceiptToDatabase(
-                $response,
-                (int)$row->order_id,
-                (bool)$row->is_return,
-                (int)$row->id,
-                $row->related_receipt_id ?? null,
-                $row->receipt_type ?? null
-            );
+            if (self::documentHasError($response)) {
+                $this->logFailure('receipt rejected after acceptance', ['order_id' => (int)$row->order_id]);
 
-            return true;
+                return false;
+            }
+            $this->completeIntent($row, $response);
+
+            return false;
         }
 
-        $notFound = (int)($this->errors['http_code'] ?? 0) === 404;
+        $missing = (int)($this->errors['http_code'] ?? 0) === 404;
         $this->clearErrors();
-        if ($notFound) {
-            $this->entityFactory->get(FiscalReceiptsEntity::class)->update((int)$row->id, ['relation_id' => null]);
+        // Чек післяплати кнопкою не повторюється: залишок покаже стан ланцюжка.
+        if ($missing && ($row->receipt_type ?? null) === FiscalReceiptsEntity::TYPE_AFTER_PAYMENT) {
+            $this->entityFactory->get(FiscalReceiptsEntity::class)->delete((int)$row->id);
         }
 
-        return $notFound;
+        return $missing;
     }
 
-    private function receiptExists(int $rowId): ?string
+    private function completeIntent(object $row, array $response): void
     {
-        $row = $this->entityFactory->get(FiscalReceiptsEntity::class)->findOne(['id' => $rowId]);
+        $isReturn = (bool)$row->is_return;
+        $this->saveReceiptToDatabase(
+            $response,
+            (int)$row->order_id,
+            $isReturn,
+            (int)$row->id,
+            $row->related_receipt_id ?: ($isReturn ? $this->findLastSaleReceiptId((int)$row->order_id) : null),
+            $row->receipt_type ?? null
+        );
 
-        return $row ? (string)$row->receipt_id : null;
+        if (($row->receipt_type ?? null) === FiscalReceiptsEntity::TYPE_AFTER_PAYMENT) {
+            $this->refreshOrderChainStatus((int)$row->order_id);
+        }
     }
 
     /** @return int[] */
@@ -526,12 +593,13 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
     /** @return array|object|null */
     private function openChain(int $orderId, int $advanceKopiyky, string $source, array $context)
     {
-        // Друга вкладка могла відкрити ланцюжок, поки ця чекала блокування.
-        $chain = $this->orderChainStatus($orderId);
-        if ($chain !== null
-            && !in_array((string)$chain['pre_payment_status'], CheckboxCardActions::CLOSED_STATUSES, true)
-        ) {
+        // Друга вкладка могла відкрити ланцюжок чи виставити продаж, поки ця чекала блокування.
+        if ($this->chainHoldsOrder($orderId)) {
             return (object)['message' => $this->translations->getTranslation('sviat__checkbox__errors_chain_is_open')];
+        }
+        $rows = $this->entityFactory->get(FiscalReceiptsEntity::class)->find(['order_id' => $orderId]);
+        if (CheckboxReceiptSet::hasSaleReceipt($rows) || CheckboxReceiptSet::hasSaleIntent($rows)) {
+            return (object)['message' => $this->translations->getTranslation('sviat__checkbox__errors_sale_exists')];
         }
 
         $this->shiftsHelper->openShiftIfNeeded();
@@ -575,19 +643,25 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
             $relationId
         );
         $pendingId = is_array($pending) && isset($pending['id']) ? (int)$pending['id'] : null;
+        if ($pendingId === null) {
+            $this->logFailure('chain intent not saved', ['order_id' => $orderId]);
+
+            return (object)['message' => $this->translations->getTranslation('sviat__checkbox__errors_order_busy')];
+        }
 
         $response = $this->withShiftRecovery(fn () => $this->prepaymentHelper->createChain($payload));
         if (!empty($this->errors) || !is_array($response)) {
-            if (is_array($response)) {
-                // Checkbox відповів і відмовив — ланцюжка немає, намір знімаємо,
-                // інакше він хибно блокував би продаж назавжди.
+            $outcome = CheckboxApiOutcome::of($this->errors, $response);
+            if ($outcome === CheckboxApiOutcome::REJECTED || $outcome === CheckboxApiOutcome::SHIFT_CLOSED) {
+                // Checkbox відмовив — ланцюжка немає, намір знімаємо, інакше він
+                // хибно блокував би продаж назавжди.
                 $this->dropPendingChain($pendingId);
 
-                return (object)$response;
+                return is_array($response) ? (object)$response : (object)['message' => $this->errors['message'] ?? 'checkbox request failed'];
             }
 
-            // Відповіді немає взагалі: ланцюжок міг створитись. Намір лишаємо і
-            // позначаємо стан невідомим — це зупинить автоматику до з'ясування.
+            // Відповіді немає або це збій сервера: ланцюжок міг створитись. Намір лишаємо
+            // і позначаємо стан невідомим — це зупинить автоматику до з'ясування.
             $this->updateChainState($pendingId, CheckboxChainDecision::STATUS_UNKNOWN, null, null);
 
             return (object)['message' => $this->errors['message'] ?? 'checkbox request failed'];
@@ -779,7 +853,13 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
     private function closeChain(int $orderId, ?int $amountKopiyky, string $source, ?string $label)
     {
         // Під блокуванням: залишок мусить бути той, що лишився після паралельного чека.
+        $this->clearErrors();
         $chain = $this->refreshOrderChainStatus($orderId);
+        $refreshError = $this->currentError();
+        if ($refreshError !== null) {
+            // Застарілий залишок дав би чек на неправильну суму.
+            return (object)['message' => $refreshError];
+        }
         if ($chain === null || $chain['pre_payment_status'] !== 'PARTIAL_PAID') {
             return (object)['message' => $this->translations->getTranslation('sviat__checkbox__errors_chain_is_open')];
         }
@@ -797,8 +877,34 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
             return (object)$cashier;
         }
 
+        // Намір із тим самим id, що й у звичайного чека: інакше загублена відповідь
+        // лишила б чек у Checkbox без сліду в нашій таблиці.
+        $receiptsEntity = $this->entityFactory->get(FiscalReceiptsEntity::class);
+        $pending = $receiptsEntity->order('id_desc')->findOne([
+            'order_id'     => $orderId,
+            'receipt_id'   => '',
+            'receipt_type' => FiscalReceiptsEntity::TYPE_AFTER_PAYMENT,
+        ]);
+        $reusedUuid = !empty($pending->relation_id);
+        $uuid = $reusedUuid ? (string)$pending->relation_id : $this->uuid4();
+        $intent = $this->saveReceiptToDatabase(
+            [],
+            $orderId,
+            false,
+            $pending ? (int)$pending->id : null,
+            null,
+            FiscalReceiptsEntity::TYPE_AFTER_PAYMENT,
+            $uuid
+        );
+        if (!is_array($intent) || ($intent['relation_id'] ?? null) !== $uuid) {
+            $this->logFailure('receipt intent not saved', ['order_id' => $orderId]);
+
+            return (object)['message' => $this->translations->getTranslation('sviat__checkbox__errors_order_busy')];
+        }
+        $intentId = (int)$intent['id'];
+
         $payload = [
-            'id'           => $this->uuid4(),
+            'id'           => $uuid,
             'cashier_name' => is_array($cashier) && isset($cashier['full_name']) ? (string)$cashier['full_name'] : '',
             'payments'     => [CheckboxPaymentForm::payment($source, $amount, $label)],
         ];
@@ -808,7 +914,12 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
             // При таймауті чи cURL-помилці відповіді немає взагалі, а причина
             // лежить в errors. Без цього назовні пішов би null, і менеджер
             // побачив би порожнечу замість пояснення — і натиснув би ще раз.
-            if (is_array($response)) {
+            $outcome = CheckboxApiOutcome::of($this->errors, $response);
+            // Відмова на повторному id не доводить, що першого документа немає: це вирішить звірка.
+            if (!$reusedUuid && ($outcome === CheckboxApiOutcome::REJECTED || $outcome === CheckboxApiOutcome::SHIFT_CLOSED)) {
+                $receiptsEntity->delete($intentId);
+            }
+            if (is_array($response) && $outcome !== CheckboxApiOutcome::UNKNOWN) {
                 return (object)$response;
             }
 
@@ -841,7 +952,7 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
             $response,
             $orderId,
             false,
-            null,
+            $intentId,
             null,
             $isClosed ? FiscalReceiptsEntity::TYPE_AFTER_PAYMENT : FiscalReceiptsEntity::TYPE_PREPAYMENT,
             $chain['relation_id']
@@ -1330,6 +1441,14 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
             $receipt->relation_id = $relationId;
         }
 
+        if ($isReturn && !empty($relatedReceiptId)) {
+            $receipt->related_receipt_id = $relatedReceiptId;
+        }
+
+        if (empty($response['id']) && $relationId !== null) {
+            $receipt->updated_at = date('Y-m-d H:i:s');
+        }
+
         if (!empty($response['id'])) {
             $receipt->receipt_id = (string)$response['id'];
             // Хост тестової і бойової каси однаковий, тож без цієї позначки
@@ -1343,10 +1462,6 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
 
             $updatedAt = strtotime($response['updated_at'] ?? '');
             $receipt->updated_at = $updatedAt !== false ? date('Y-m-d H:i:s', $updatedAt) : null;
-
-            if ($isReturn && !empty($relatedReceiptId)) {
-                $receipt->related_receipt_id = $relatedReceiptId;
-            }
         }
 
         $filter = [];

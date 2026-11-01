@@ -13,11 +13,12 @@ namespace Okay\Modules\Sviat\Checkbox\Helpers;
  */
 final class CheckboxApiOutcome
 {
-    const string SUCCESS        = 'success';
-    const string SHIFT_CLOSED   = 'shift_closed';
-    const string ALREADY_EXISTS = 'already_exists';
-    const string REJECTED       = 'rejected';
-    const string UNKNOWN        = 'unknown';
+    const string SUCCESS         = 'success';
+    const string SHIFT_CLOSED    = 'shift_closed';
+    const string ALREADY_EXISTS  = 'already_exists';
+    const string DOCUMENT_FAILED = 'document_failed';
+    const string REJECTED        = 'rejected';
+    const string UNKNOWN         = 'unknown';
 
     private const array RETRYABLE_HTTP = [408, 425, 429];
 

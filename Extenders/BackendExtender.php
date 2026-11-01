@@ -116,9 +116,6 @@ class BackendExtender implements ExtensionInterface
         $receiptsEntity = $this->entityFactory->get(FiscalReceiptsEntity::class);
         $orderReceiptRows = $receiptsEntity->find(['order_id' => $order->id]);
         $this->design->assign('orderReceipts', $orderReceiptRows);
-        // Рахуються лише заготовки продажу й повернення: намір ланцюжка теж має
-        // порожній receipt_id, але це попередження ховає всі дії на картці, і
-        // намір потрапив би сюди саме тоді, коли дії найпотрібніші.
         $this->design->assign('emptyOrderReceiptsCount', CheckboxReceiptSet::countUnfinished($orderReceiptRows));
 
         $paymentsEntity = $this->entityFactory->get(PaymentsEntity::class);
@@ -153,13 +150,18 @@ class BackendExtender implements ExtensionInterface
         // менеджер називає його явно, тож прапорець ланцюжка не стосується:
         // ані створення, ані закриття. Він гасить лише чеки, що спираються на
         // сам спосіб оплати — продаж і повернення.
-        $this->design->assign('checkboxActions', CheckboxCardActions::forOrder(
+        $checkboxActions = CheckboxCardActions::forOrder(
             $chainStatus,
             $hasSaleReceipt,
             $hasUncoveredSale,
             (bool)$dontSend,
             (bool)$order->paid
-        ));
+        );
+        // Продаж міг створитись, тож аванс поверх нього сервер відхилить.
+        if (CheckboxReceiptSet::hasSaleIntent($orderReceiptRows)) {
+            $checkboxActions['prepayment'] = false;
+        }
+        $this->design->assign('checkboxActions', $checkboxActions);
         // Пункт списку — це рівно та мітка, яка надрукується в рядку 19 чека.
         // Окремої «назви для менеджера» немає навмисне: два різні написи на
         // один вибір змушували читати обидва, а фіскальний наслідок має один.
@@ -285,7 +287,7 @@ class BackendExtender implements ExtensionInterface
         }
     }
 
-    /** Хук списку замовлень: масово підвантажує останній чек для кожного замовлення. */
+    /** Хук списку замовлень: масово підвантажує останній виставлений чек для кожного замовлення. */
     public function findOrders(array $orders): void
     {
         if (empty($orders)) {
@@ -298,6 +300,9 @@ class BackendExtender implements ExtensionInterface
 
         $receiptsMap = [];
         foreach ($receipts as $receipt) {
+            if (empty($receipt->receipt_id)) {
+                continue;
+            }
             $orderId = (int)$receipt->order_id;
             if (!isset($receiptsMap[$orderId]) || $receipt->id > $receiptsMap[$orderId]->id) {
                 $receiptsMap[$orderId] = $receipt;

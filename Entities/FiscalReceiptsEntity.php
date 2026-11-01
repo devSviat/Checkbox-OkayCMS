@@ -12,8 +12,8 @@ use Okay\Core\Entity\Entity;
  * (наприклад, зміна була закрита в момент оплати).
  *
  * receipt_type — головна ознака; is_return лишається заповненим для сумісності зі
- * старими записами й вибірками. relation_id заповнений лише в чеків ланцюжка
- * передплати. is_test відрізняє чеки, пробиті на тестовій касі: хост у тесту і
+ * старими записами й вибірками. relation_id — id ланцюжка передплати, а в рядка
+ * з порожнім receipt_id — id чека, уже надісланий до Checkbox. is_test відрізняє чеки, пробиті на тестовій касі: хост у тесту і
  * бою однаковий, тож без цієї позначки їх не розрізнити.
  */
 class FiscalReceiptsEntity extends Entity
@@ -51,4 +51,19 @@ class FiscalReceiptsEntity extends Entity
     protected static $defaultOrderFields = ['id'];
 
     protected static $table = '__sviat__checkbox__fiscal_receipts';
+
+    /** Фільтр: свіжі наміри, де запит міг створити чек, а відповіді немає. Значення — вікно в днях. */
+    protected function filter__pending_intent($days): void
+    {
+        $this->select->where(
+            "receipt_id = '' AND relation_id IS NOT NULL AND relation_id <> ''
+             AND receipt_type IN ('sale', 'return', 'after_payment') AND updated_at >= :pending_since"
+        )->bindValue('pending_since', date('Y-m-d H:i:s', strtotime('-' . (int)$days . ' days')));
+    }
+
+    /** Фільтр: заготовки чеків продажу, які ще не надсилали. */
+    protected function filter__pending_placeholder(): void
+    {
+        $this->select->where("receipt_id = '' AND receipt_type = 'sale' AND (relation_id IS NULL OR relation_id = '')");
+    }
 }

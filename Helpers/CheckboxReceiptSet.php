@@ -75,13 +75,25 @@ final class CheckboxReceiptSet
         return false;
     }
 
+    /** Чи є чек продажу, який міг створитись, а відповідь не дійшла. */
+    public static function hasSaleIntent($receipts): bool
+    {
+        foreach ($receipts as $receipt) {
+            if (empty($receipt->receipt_id) && !empty($receipt->relation_id)
+                && ($receipt->receipt_type ?? FiscalReceiptsEntity::TYPE_SALE) === FiscalReceiptsEntity::TYPE_SALE
+            ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /**
      * Скільки заготовок чекає на відкриту зміну.
      *
-     * Рахуються лише продаж і повернення. Рядок-намір ланцюжка теж має порожній
-     * receipt_id, але чекає на відповідь Checkbox, а не на зміну; попередження
-     * про незавершені чеки ховає на картці всі дії, тож зарахувати його сюди
-     * означало б замкнути менеджера після першого ж таймауту.
+     * Рахуються лише продаж і повернення: рядок-намір ланцюжка теж має порожній
+     * receipt_id, але чекає на відповідь Checkbox, а не на зміну.
      *
      * @param iterable $receipts рядки таблиці чеків цього замовлення
      */
