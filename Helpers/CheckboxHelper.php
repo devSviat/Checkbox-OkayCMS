@@ -63,6 +63,7 @@ class CheckboxHelper
     public function cronCheckShifts(): void
     {
         $this->shiftsHelper->cronCheckShifts();
+        $this->receiptsHelper->reconcilePendingReceipts();
     }
 
     /** @return array|false */
