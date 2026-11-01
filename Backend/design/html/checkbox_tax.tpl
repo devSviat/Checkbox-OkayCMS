@@ -31,8 +31,8 @@
                         {/if}
                     </div>
                 </div>
-                {if $smarty.get.return}
-                    <a class="alert__button" href="{$smarty.get.return}">
+                {if $checkboxReturnUrl}
+                    <a class="alert__button" href="{$checkboxReturnUrl|escape}">
                         {include file='svg_icon.tpl' svgId='return'}
                         <span>{$btr->general_back|escape}</span>
                     </a>

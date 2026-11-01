@@ -130,12 +130,13 @@
                                 <div class="sviat__checkbox_alert__title">{$btr->sviat__checkbox__alert_no_shift_title|escape}</div>
                                 <div class="sviat__checkbox_alert__details">{$btr->sviat__checkbox__errors_no_shift}</div>
                             </div>
-                        {elseif $emptyOrderReceiptsCount}
+                        {else}
+                            {if $emptyOrderReceiptsCount}
                             <div class="sviat__checkbox_alert sviat__checkbox_alert--warning">
                                 <div class="sviat__checkbox_alert__title">{$btr->sviat__checkbox__alert_unfinished_title|escape}</div>
                                 <div class="sviat__checkbox_alert__details">{$btr->sviat__checkbox__errors_empty_receipts_isset}</div>
                             </div>
-                        {else}
+                            {/if}
                             {* «Не відправляти» стосується основної суми замовлення, а не
                                авансу: той може надійти іншим шляхом, і менеджер називає
                                його явно. Тому попередження лишається, а дії ланцюжка — ні. *}

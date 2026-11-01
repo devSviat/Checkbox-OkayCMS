@@ -19,8 +19,8 @@
                         {/if}
                     </div>
                 </div>
-                {if $smarty.get.return}
-                    <a class="alert__button" href="{$smarty.get.return}">
+                {if $checkboxReturnUrl}
+                    <a class="alert__button" href="{$checkboxReturnUrl|escape}">
                         {include file='svg_icon.tpl' svgId='return'}
                         <span>{$btr->general_back|escape}</span>
                     </a>
@@ -95,8 +95,9 @@
                                 <input name="sviat__checkbox__cashier_password"
                                        class="form-control"
                                        type="password"
-                                       value="{$settings->sviat__checkbox__cashier_password|escape}"
-                                       placeholder="{$btr->sviat__checkbox__password_placeholder|escape}" />
+                                       value=""
+                                       autocomplete="new-password"
+                                       placeholder="{if $checkboxPasswordIsSet}{$btr->sviat__checkbox__secret_keep_placeholder|escape}{else}{$btr->sviat__checkbox__password_placeholder|escape}{/if}" />
                             </div>
                         </div>
                         <div class="col-md-12">
@@ -104,9 +105,10 @@
                             <div class="mb-1">
                                 <input name="sviat__checkbox__cashier_license_key"
                                        class="form-control"
-                                       type="text"
-                                       value="{$settings->sviat__checkbox__cashier_license_key|escape}"
-                                       placeholder="{$btr->sviat__checkbox__license_key_placeholder|escape}" />
+                                       type="password"
+                                       value=""
+                                       autocomplete="new-password"
+                                       placeholder="{if $checkboxLicenseIsSet}{$btr->sviat__checkbox__secret_keep_placeholder|escape}{else}{$btr->sviat__checkbox__license_key_placeholder|escape}{/if}" />
                             </div>
                         </div>
                     </div>

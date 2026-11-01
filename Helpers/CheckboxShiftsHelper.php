@@ -195,6 +195,22 @@ class CheckboxShiftsHelper extends CheckboxApiHelper
     }
 
     /**
+     * Каса закрила зміну сама, а модуль дізнався про це з відмови на чек.
+     * Синхронізація йде раз на 5 хвилин, тож без цього чек у цьому вікні втрачався б.
+     */
+    public function reopenAfterRemoteClose(): ?object
+    {
+        $shiftsEntity = $this->entityFactory->get(CashierShiftsEntity::class);
+        $activeShift = $shiftsEntity->getActiveShift();
+        if ($activeShift && !empty($activeShift->shift_id)) {
+            $this->checkShiftStatus((string)$activeShift->shift_id);
+            $this->clearErrors();
+        }
+
+        return $this->openShiftIfNeeded();
+    }
+
+    /**
      * Інформація про поточного касира. Кешується в сесії між веб-запитами.
      *
      * @return array|false
