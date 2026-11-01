@@ -884,7 +884,8 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
 
     /**
      * Відправляє чеки для щойно оплачених замовлень.
-     * Пропускає замовлення без товарів, з PAYMENT_SKIP і з уже існуючим чеком продажу.
+     * Пропускає замовлення без товарів, з PAYMENT_SKIP, з уже існуючим чеком продажу
+     * і з ланцюжком, якому автоматика нічого не винна.
      * Відкриває зміну тільки якщо є хоча б одне замовлення для фіскалізації.
      *
      * @param array $ids    ID замовлень
@@ -956,11 +957,25 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
             if (!empty($hasSaleReceiptMap[$orderId])) {
                 continue; // вже є фіскалізований чек продажу
             }
+            // Те саме рішення приймає fiscaliseOrder(), але зміну треба не відкривати
+            // ще до нього: кожна порожня зміна лишає Z-звіт.
+            $chain = $this->orderChainStatus($orderId);
+            $chainStatus = $chain === null ? null : (string)$chain['pre_payment_status'];
+            if (CheckboxChainDecision::forOrder($chainStatus, false) === CheckboxChainDecision::ACTION_NONE) {
+                continue;
+            }
             $emptyReceiptId = isset($emptyReceiptMap[$orderId]) ? (int)$emptyReceiptMap[$orderId]->id : null;
             $ordersToReceipt[$orderId] = $emptyReceiptId;
         }
 
         if (empty($ordersToReceipt)) {
+            return false;
+        }
+
+        // Нечитабельна таблиця вище виглядає як «чеків немає», тож відбір тут хибний.
+        if (!$this->receiptsTableIsReadable()) {
+            $this->logFailure('fiscalisation skipped: receipts table unreadable', ['order_ids' => array_keys($ordersToReceipt)]);
+
             return false;
         }
 

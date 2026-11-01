@@ -20,6 +20,7 @@ use Okay\Admin\Helpers\BackendProductsHelper;
 use Okay\Admin\Requests\BackendPaymentsRequest;
 use Okay\Admin\Requests\BackendProductsRequest;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxHelper;
+use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxPlaceholderCleanup;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxPaymentSources;
 use Okay\Modules\Sviat\Checkbox\Extenders\FrontExtender;
 use Okay\Modules\Sviat\Checkbox\Entities\TaxGroupsEntity;
@@ -168,6 +169,23 @@ class Init extends AbstractInit
             ['cash', 'bank_account', 'internet_banking', 'integrator:NovaPay'],
             ['integrator' => ['NovaPay']]
         ));
+    }
+
+    /** До обмеження одним рядком заготовки накопичувались, і лічильник в адмінці рахує кожну. */
+    public function update_1_2_12(): void
+    {
+        /** @var FiscalReceiptsEntity $fiscalReceiptsEntity */
+        $fiscalReceiptsEntity = ServiceLocator::getInstance()->getService(EntityFactory::class)
+            ->get(FiscalReceiptsEntity::class);
+
+        $placeholders = $fiscalReceiptsEntity
+            ->cols(['id', 'order_id', 'receipt_type', 'receipt_id'])
+            ->noLimit()
+            ->find(['receipt_id' => '']);
+
+        foreach (array_chunk(CheckboxPlaceholderCleanup::surplusIds($placeholders), 500) as $ids) {
+            $fiscalReceiptsEntity->delete($ids);
+        }
     }
 
     /**
