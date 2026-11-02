@@ -108,6 +108,10 @@ class CheckboxAdmin extends IndexAdmin
         $this->design->assign('checkboxPasswordIsSet', (string) $this->settings->get('sviat__checkbox__cashier_password') !== '');
         $this->design->assign('checkboxLicenseIsSet', (string) $this->settings->get('sviat__checkbox__cashier_license_key') !== '');
         $this->design->assign('checkboxReturnUrl', ReturnUrl::safe($this->request->get('return')));
+        $this->design->assign('checkboxCashierConfigured', (string) $this->settings->get('sviat__checkbox__cashier_login') !== ''
+            && (string) $this->settings->get('sviat__checkbox__cashier_password') !== ''
+            && (string) $this->settings->get('sviat__checkbox__cashier_license_key') !== '');
+        $this->design->assign('checkboxActiveShift', $shiftsEntity->getActiveShift());
 
         $this->response->setContent($this->design->fetch('checkbox_admin.tpl'));
     }

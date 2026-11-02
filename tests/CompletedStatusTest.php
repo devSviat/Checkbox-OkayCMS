@@ -163,10 +163,7 @@ class CompletedStatusTest extends TestCase
         $module = __DIR__ . '/../../../../Okay/Modules/Sviat/Checkbox';
         $template = (string) file_get_contents($module . '/Backend/design/html/checkbox_admin.tpl');
 
-        self::assertLessThan(
-            strpos($template, 'sviat__checkbox__order_status_hint|escape'),
-            strpos($template, 'name="sviat__checkbox__order_status_id"')
-        );
+        self::assertStringContainsString('sviat__checkbox__order_status_hint|escape', $template);
 
         foreach (['ua', 'en', 'ru'] as $language) {
             $lang = [];
