@@ -34,6 +34,9 @@ class BackendExtender implements ExtensionInterface
     private BackendTranslations $backendTranslations;
     private BackendPostRedirectGet $postRedirectGet;
 
+    /** @var array<int, int> */
+    private array $statusBeforeSave = [];
+
     public function __construct(
         Design $design,
         Request $request,
@@ -329,110 +332,73 @@ class BackendExtender implements ExtensionInterface
     }
 
     /**
-     * Хук зміни статусу одного замовлення: відправляє чек якщо статус збігається
-     * з налаштованим sviat__checkbox__order_status_id і ще немає чека продажу.
+     * Хук перед збереженням картки: updateOrderStatus() викликається при кожному
+     * збереженні й нового статусу вже не бачить відмінним від бази.
      */
-    public function updateOrderStatus($resultUpdate, $order, int $orderStatusId): void
+    public function rememberOrderStatus($order)
     {
-        $statusId = $this->settings->get('sviat__checkbox__order_status_id');
-        $checkboxStatusId = is_numeric($statusId) ? (int)$statusId : 0;
-        if ($checkboxStatusId === 0 || $checkboxStatusId !== $orderStatusId) {
-            return;
+        if (!empty($order->id)) {
+            $current = $this->entityFactory->get(OrdersEntity::class)->cols(['status_id'])->get((int)$order->id);
+            $this->statusBeforeSave[(int)$order->id] = $current ? (int)$current->status_id : 0;
         }
 
-        $shiftsEntity = $this->entityFactory->get(CashierShiftsEntity::class);
-        if (!$shiftsEntity->getActiveShift()) {
+        return $order;
+    }
+
+    /** Хук зміни статусу в картці: перехід у статус із налаштувань означає отримані гроші. */
+    public function updateOrderStatus($resultUpdate, $order, int $orderStatusId): void
+    {
+        if (!$resultUpdate || $orderStatusId !== $this->completedStatusId()) {
+            return;
+        }
+        if (($this->statusBeforeSave[(int)$order->id] ?? 0) === $orderStatusId) {
             return;
         }
 
         if (!empty($order->payment_method_id)) {
-            $paymentsEntity = $this->entityFactory->get(PaymentsEntity::class);
-            $paymentMethod = $paymentsEntity->findOne(['id' => $order->payment_method_id]);
+            $paymentMethod = $this->entityFactory->get(PaymentsEntity::class)->findOne(['id' => $order->payment_method_id]);
             if ($paymentMethod && !empty($paymentMethod->{Init::PAYMENT_SKIP_FIELD})) {
                 return;
             }
         }
 
-        // Перевіряємо існування саме чека продажу з receipt_id, а не "тип останнього чека":
-        // після створення чека повернення останній чек має is_return=1 і колишня логіка
-        // помилково запускала повторне виставлення чека продажу.
-        // Тип фільтрується в PHP, а не в запиті: до виконання міграції колонки
-        // receipt_type ще немає, вибірка з фільтром по ній мовчки порожня, і це
-        // прочиталось би як «чека продажу немає» — тобто дубль чека.
-        $receiptsEntity = $this->entityFactory->get(FiscalReceiptsEntity::class);
-        $saleReceipts = $receiptsEntity->find(['order_id' => $order->id]);
-        if (!CheckboxReceiptSet::hasSaleReceipt($saleReceipts)) {
-            $this->checkboxHelper->fiscaliseOrder((int)$order->id);
+        $this->completeOrder((int)$order->id);
+    }
+
+    /** Хук масової зміни статусу: вибір замовлень менеджером уже є явною дією над кожним. */
+    public function changeStatus($output, array $ids): void
+    {
+        $completedStatusId = $this->completedStatusId();
+        if (empty($ids) || $completedStatusId === 0) {
+            return;
+        }
+
+        $orders = $this->entityFactory->get(OrdersEntity::class)->mappedBy('id')->find(['id' => array_map(intval(...), $ids)]);
+        $skippedMethods = $this->entityFactory->get(PaymentsEntity::class)->mappedBy('id')->find([Init::PAYMENT_SKIP_FIELD => 1]);
+
+        foreach ($orders as $order) {
+            if ((int)$order->status_id !== $completedStatusId || isset($skippedMethods[$order->payment_method_id])) {
+                continue;
+            }
+            try {
+                $this->completeOrder((int)$order->id);
+            } catch (\Exception) {
+                continue;
+            }
         }
     }
 
-    /**
-     * Хук масової зміни статусу замовлень: відправляє чеки для замовлень,
-     * у яких встановлено потрібний статус і ще немає чека продажу.
-     */
-    public function changeStatus($output, array $ids): void
+    private function completedStatusId(): int
     {
-        if (empty($ids)) {
-            return;
-        }
-
         $statusId = $this->settings->get('sviat__checkbox__order_status_id');
-        $checkboxStatusId = is_numeric($statusId) ? (int)$statusId : 0;
-        if ($checkboxStatusId === 0) {
-            return;
-        }
 
-        $shiftsEntity = $this->entityFactory->get(CashierShiftsEntity::class);
-        if (!$shiftsEntity->getActiveShift()) {
-            return;
-        }
+        return is_numeric($statusId) ? (int)$statusId : 0;
+    }
 
-        $ordersEntity = $this->entityFactory->get(OrdersEntity::class);
-        $orders = $ordersEntity->mappedBy('id')->find(['id' => array_map(intval(...), $ids)]);
-        if (empty($orders)) {
-            return;
-        }
-
-        $ordersToProcess = array_filter($orders, fn($o) => (int)$o->status_id === $checkboxStatusId);
-        if (empty($ordersToProcess)) {
-            return;
-        }
-
-        $paymentsEntity = $this->entityFactory->get(PaymentsEntity::class);
-        $paymentMethodIds = array_filter(array_map(fn($o) => (int)($o->payment_method_id ?? 0), $ordersToProcess));
-        $paymentMethods = !empty($paymentMethodIds)
-            ? $paymentsEntity->mappedBy('id')->find(['id' => array_unique($paymentMethodIds)])
-            : [];
-
-        // Перевіряємо існування саме чека продажу з receipt_id, а не "тип останнього чека":
-        // після створення чека повернення останній чек має is_return=1 і колишня логіка
-        // помилково запускала повторне виставлення чека продажу.
-        $receiptsEntity = $this->entityFactory->get(FiscalReceiptsEntity::class);
-        $receipts = $receiptsEntity->find(['order_id' => array_keys($ordersToProcess)]);
-        $receiptsByOrder = [];
-        foreach ($receipts as $receipt) {
-            $receiptsByOrder[(int)$receipt->order_id][] = $receipt;
-        }
-        $hasSaleReceiptMap = [];
-        foreach ($receiptsByOrder as $receiptOrderId => $orderReceipts) {
-            if (CheckboxReceiptSet::hasSaleReceipt($orderReceipts)) {
-                $hasSaleReceiptMap[$receiptOrderId] = true;
-            }
-        }
-
-        foreach ($ordersToProcess as $order) {
-            if (!empty($order->payment_method_id) && isset($paymentMethods[$order->payment_method_id])) {
-                if (!empty($paymentMethods[$order->payment_method_id]->{Init::PAYMENT_SKIP_FIELD})) {
-                    continue;
-                }
-            }
-            if (empty($hasSaleReceiptMap[(int)$order->id])) {
-                try {
-                    $this->checkboxHelper->fiscaliseOrder((int)$order->id);
-                } catch (\Exception) {
-                    continue;
-                }
-            }
-        }
+    /** Оплачене раніше замовлення хука оплати не викличе, тому чек запускається ще й напряму. */
+    private function completeOrder(int $orderId): void
+    {
+        $this->entityFactory->get(OrdersEntity::class)->update($orderId, ['paid' => 1]);
+        $this->checkboxHelper->createReceiptsForPaidOrders([$orderId], 1);
     }
 }
