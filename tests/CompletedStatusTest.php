@@ -158,6 +158,23 @@ class CompletedStatusTest extends TestCase
         self::assertSame([101], (array) $env->sent);
     }
 
+    public function testSettingExplainsWhatTheStatusDoes(): void
+    {
+        $module = __DIR__ . '/../../../../Okay/Modules/Sviat/Checkbox';
+        $template = (string) file_get_contents($module . '/Backend/design/html/checkbox_admin.tpl');
+
+        self::assertLessThan(
+            strpos($template, 'sviat__checkbox__order_status_hint|escape'),
+            strpos($template, 'name="sviat__checkbox__order_status_id"')
+        );
+
+        foreach (['ua', 'en', 'ru'] as $language) {
+            $lang = [];
+            require $module . "/Backend/lang/$language.php";
+            self::assertNotEmpty($lang['sviat__checkbox__order_status_hint'] ?? null, $language);
+        }
+    }
+
     public function testBulkChangeSkipsMethodWithoutReceipts(): void
     {
         $env = $this->env(statusInDb: self::DONE, method: self::SKIPPED_METHOD);

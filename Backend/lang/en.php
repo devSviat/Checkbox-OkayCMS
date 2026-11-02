@@ -16,6 +16,7 @@ $lang['sviat__checkbox__secret_keep_placeholder'] = 'Leave blank to keep the cur
 $lang['sviat__checkbox__receipt_text_placeholder'] = 'Text displayed at the bottom of the receipt (use {$order_id} to insert the order number)';
 $lang['sviat__checkbox__order_available_status'] = 'Automatically create and send receipt on status change';
 $lang['sviat__checkbox__no_status'] = 'No status selected';
+$lang['sviat__checkbox__order_status_hint'] = 'Moving an order to this status, manually or in bulk from the list, marks it as paid: the shift opens by itself and a receipt is created. To turn this off, choose «No status selected».';
 $lang['sviat__checkbox__receipt_text'] = 'Receipt text';
 $lang['sviat__checkbox__receipt_text_order_id_description'] = 'Text will be displayed at the bottom of the receipt. To insert the order number use:';
 $lang['sviat__checkbox__receipt_text_order_id_label'] = 'Order number';

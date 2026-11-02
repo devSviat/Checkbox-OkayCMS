@@ -154,6 +154,7 @@
                                         </option>
                                     {/foreach}
                                 </select>
+                                <small class="text_grey">{$btr->sviat__checkbox__order_status_hint|escape}</small>
                             </div>
                         </div>
                         <div class="col-md-6">

@@ -16,6 +16,7 @@ $lang['sviat__checkbox__secret_keep_placeholder'] = 'Залиште порожн
 $lang['sviat__checkbox__receipt_text_placeholder'] = 'Текст, який буде відображатися в нижній частині чека (можна використовувати {$order_id} для підстановки номера замовлення)';
 $lang['sviat__checkbox__order_available_status'] = 'Автоматичне формування та відправка чека при зміні статусу';
 $lang['sviat__checkbox__no_status'] = 'Статус не вибраний';
+$lang['sviat__checkbox__order_status_hint'] = 'Перехід у цей статус, вручну або масово зі списку, ставить «Оплачено»: зміна відкривається сама, чек створюється автоматично. Щоб вимкнути, оберіть «Статус не вибраний».';
 $lang['sviat__checkbox__receipt_text'] = 'Текст для чека';
 $lang['sviat__checkbox__receipt_text_order_id_description'] = 'Текст буде відображатися в нижній частині чека. Для підстановки номера замовлення використовуйте:';
 $lang['sviat__checkbox__receipt_text_order_id_label'] = 'Номер замовлення';
