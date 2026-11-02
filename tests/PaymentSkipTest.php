@@ -72,8 +72,8 @@ class PaymentSkipTest extends TestCase
     {
         $sent = [];
         $extender = $this->extender($sent, [
-            CashierShiftsEntity::class => $this->openShift(),
-            PaymentsEntity::class      => $this->paymentsSingle(),
+            OrdersEntity::class   => $this->ordersMap(),
+            PaymentsEntity::class => $this->paymentsSingle(),
         ]);
 
         $order = (object)['id' => 101, 'payment_method_id' => self::SKIPPED_PAYMENT_ID];
@@ -87,7 +87,6 @@ class PaymentSkipTest extends TestCase
     {
         $sent = [];
         $extender = $this->extender($sent, [
-            CashierShiftsEntity::class  => $this->openShift(),
             OrdersEntity::class         => $this->ordersMap(),
             PaymentsEntity::class       => $this->paymentsMap(),
             FiscalReceiptsEntity::class => $this->receiptsSpy(),
@@ -107,7 +106,6 @@ class PaymentSkipTest extends TestCase
     {
         $sent = [];
         $extender = $this->extender($sent, [
-            CashierShiftsEntity::class  => $this->openShift(),
             OrdersEntity::class         => $this->ordersMap(0),
             PaymentsEntity::class       => $this->paymentsMap(),
             FiscalReceiptsEntity::class => $this->receiptsSpy(),
@@ -134,6 +132,11 @@ class PaymentSkipTest extends TestCase
             public function mappedBy($column)
             {
                 return $this;
+            }
+
+            public function update($id, $object)
+            {
+                return $id;
             }
 
             public function find(array $filter = [])
@@ -276,14 +279,12 @@ class PaymentSkipTest extends TestCase
      */
     private function extender(array &$sent, array $entities): BackendExtender
     {
-        // updateOrderStatus()/changeStatus() тепер ідуть через fiscaliseOrder() —
-        // єдину точку диспетчеризації, а не напряму через createReceipt().
         $checkbox = $this->createStub(CheckboxHelper::class);
-        $checkbox->method('fiscaliseOrder')->willReturnCallback(
-            function ($orderId) use (&$sent) {
-                $sent[] = $orderId;
+        $checkbox->method('createReceiptsForPaidOrders')->willReturnCallback(
+            function (array $ids) use (&$sent) {
+                array_push($sent, ...$ids);
 
-                return [];
+                return null;
             }
         );
 

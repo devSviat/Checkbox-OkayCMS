@@ -330,6 +330,10 @@ class Init extends AbstractInit
             ['class' => BackendOrdersHelper::class, 'method' => 'prepareUpdate'],
             ['class' => BackendExtender::class,     'method' => 'requirePaymentMethod']
         );
+        $this->registerChainExtension(
+            ['class' => BackendOrdersHelper::class, 'method' => 'prepareUpdate'],
+            ['class' => BackendExtender::class,     'method' => 'rememberOrderStatus']
+        );
         $this->registerQueueExtension(
             ['class' => BackendOrdersHelper::class, 'method' => 'changeStatus'],
             ['class' => BackendExtender::class,     'method' => 'changeStatus']
