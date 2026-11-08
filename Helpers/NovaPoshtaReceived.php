@@ -45,7 +45,7 @@ final class NovaPoshtaReceived
             $ids = [...$ids, ...$this->oldIds($since)];
         }
 
-        return array_values(array_unique(array_map('intval', $ids)));
+        return array_values(array_unique(array_map(intval(...), $ids)));
     }
 
     /** @return list<int> */
