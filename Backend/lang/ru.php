@@ -182,9 +182,9 @@ $lang['sviat__checkbox__payment_required_error'] = 'Choose a payment method: the
 $lang['sviat__checkbox__create_receipt_on_received'] = 'Создавать чек при получении Новой Почтой';
 $lang['sviat__checkbox__create_receipt_on_received_no'] = 'Не создавать';
 $lang['sviat__checkbox__create_receipt_on_received_yes'] = 'Создавать автоматически';
-$lang['sviat__checkbox__create_receipt_on_received_tooltip'] = 'Для автоматического создания чеков при получении заказа Новой Почтой необходимо установить и включить модуль NovaPoshtaTracking';
+$lang['sviat__checkbox__create_receipt_on_received_tooltip'] = 'Для автоматического создания чеков при получении заказа Новой Почтой установите и включите модуль Нова Пошта (Sviat/NovaPoshta) или старый NovaPoshtaTracking';
 $lang['sviat__checkbox__create_receipt_on_received_info_title'] = 'Инструкция';
-$lang['sviat__checkbox__create_receipt_on_received_info_text'] = 'Для автоматического создания чеков при получении заказа Новой Почтой обязательно нужен модуль NovaPoshtaTracking. Установите и включите модуль: https://github.com/devSviat/NovaPoshtaTracking-OkayCMS';
+$lang['sviat__checkbox__create_receipt_on_received_info_text'] = 'Для автоматического создания чеков при получении заказа Новой Почтой нужен модуль Нова Пошта (Sviat/NovaPoshta) или старый NovaPoshtaTracking. Установите и включите модуль: https://github.com/devSviat/NovaPoshta-OkayCMS';
 
 $lang['sviat__checkbox__cron_setup_title'] = 'Настройка автоматического обновления';
 $lang['sviat__checkbox__cron_setup_text_1'] = 'Для того чтобы чеки создавались автоматически при получении заказа Новой Почтой, убедитесь, что на сервере настроено выполнение задач через cron.';

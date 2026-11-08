@@ -182,9 +182,9 @@ $lang['sviat__checkbox__payment_required_error'] = 'Choose a payment method: the
 $lang['sviat__checkbox__create_receipt_on_received'] = 'Create receipt when order is received by Nova Poshta';
 $lang['sviat__checkbox__create_receipt_on_received_no'] = 'Do not create';
 $lang['sviat__checkbox__create_receipt_on_received_yes'] = 'Create automatically';
-$lang['sviat__checkbox__create_receipt_on_received_tooltip'] = 'The NovaPoshtaTracking module must be installed and enabled to automatically create receipts when an order is received by Nova Poshta';
+$lang['sviat__checkbox__create_receipt_on_received_tooltip'] = 'Install and enable the Nova Poshta module (Sviat/NovaPoshta) or the old NovaPoshtaTracking to automatically create receipts when an order is received by Nova Poshta';
 $lang['sviat__checkbox__create_receipt_on_received_info_title'] = 'Instructions';
-$lang['sviat__checkbox__create_receipt_on_received_info_text'] = 'The NovaPoshtaTracking module is required to automatically create receipts when an order is received by Nova Poshta. Install and enable the module: https://github.com/devSviat/NovaPoshtaTracking-OkayCMS';
+$lang['sviat__checkbox__create_receipt_on_received_info_text'] = 'The Nova Poshta module (Sviat/NovaPoshta) or the old NovaPoshtaTracking is required to automatically create receipts when an order is received by Nova Poshta. Install and enable the module: https://github.com/devSviat/NovaPoshta-OkayCMS';
 
 $lang['sviat__checkbox__cron_setup_title'] = 'Automatic update setup';
 $lang['sviat__checkbox__cron_setup_text_1'] = 'To automatically create receipts when an order is received by Nova Poshta, make sure your server is configured to run the cron task scheduler.';
