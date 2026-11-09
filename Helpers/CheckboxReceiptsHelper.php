@@ -18,7 +18,6 @@ use Okay\Modules\Sviat\Checkbox\Entities\CashierShiftsEntity;
 use Okay\Modules\Sviat\Checkbox\Entities\FiscalReceiptsEntity;
 use Okay\Modules\Sviat\Checkbox\Entities\TaxGroupsEntity;
 use Okay\Modules\Sviat\Checkbox\Init\Init;
-use Okay\Modules\Sviat\NovaPoshtaTracking\Entities\NovaPoshtaTrackingEntity;
 
 /** Створення, збереження та обробка фіскальних чеків */
 class CheckboxReceiptsHelper extends CheckboxApiHelper
@@ -1242,8 +1241,9 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
 
     /**
      * Cron-задача: знаходить ТТН зі статусом "Отримано" (код 9) і позначає замовлення як оплачені.
-     * Обробляються тільки ТТН оновлені після sviat__checkbox__installed_at —
+     * Обробляються тільки посилки, отримані після sviat__checkbox__installed_at —
      * це захист від масового виставлення чеків при першому запуску модуля.
+     * Посилки беруться з обох модулів Нової Пошти (NovaPoshtaReceived).
      *
      * Позначення замовлення як paid тригерить хук orderMarkedPaid → createReceiptsForPaidOrders,
      * який сам відкриє зміну, перевірить PAYMENT_SKIP та дублікати і створить чек.
@@ -1253,32 +1253,10 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
      */
     public function processReceivedOrders()
     {
-        $trackingEntity = $this->entityFactory->get(NovaPoshtaTrackingEntity::class);
-        $trackings = $trackingEntity->find(['status_code' => '9']);
-
-        if (empty($trackings)) {
-            return false;
-        }
-
         $installedAt = $this->settings->get('sviat__checkbox__installed_at');
-        if (!empty($installedAt)) {
-            $installedTimestamp = strtotime($installedAt);
-            if ($installedTimestamp !== false) {
-                $trackings = array_filter($trackings, fn($tracking) => !empty($tracking->updated_at) && strtotime($tracking->updated_at) >= $installedTimestamp);
-            }
-        }
-
-        if (empty($trackings)) {
-            return false;
-        }
-
-        $orderIds = [];
-        foreach ($trackings as $tracking) {
-            if (!empty($tracking->order_id)) {
-                $orderIds[] = (int)$tracking->order_id;
-            }
-        }
-        $orderIds = array_unique($orderIds);
+        $installedTimestamp = !empty($installedAt) ? strtotime($installedAt) : false;
+        $orderIds = ServiceLocator::getInstance()->getService(NovaPoshtaReceived::class)
+            ->orderIds($installedTimestamp !== false ? date('Y-m-d H:i:s', $installedTimestamp) : null);
 
         if (empty($orderIds)) {
             return false;

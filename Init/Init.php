@@ -27,6 +27,7 @@ use Okay\Modules\Sviat\Checkbox\Entities\TaxGroupsEntity;
 use Okay\Modules\Sviat\Checkbox\Extenders\BackendExtender;
 use Okay\Modules\Sviat\Checkbox\Entities\CashierShiftsEntity;
 use Okay\Modules\Sviat\Checkbox\Entities\FiscalReceiptsEntity;
+use Okay\Modules\Sviat\NovaPoshta\Waybills\AmountDue;
 use Okay\Modules\Sviat\NovaPoshtaTracking\Helpers\NovaPoshtaPaymentHelper;
 
 class Init extends AbstractInit
@@ -309,14 +310,8 @@ class Init extends AbstractInit
         $this->addBackendBlock('order_payment_info', 'checkbox_order_payment_required.tpl');
         // Менеджер бачить, звідки в накладній узялась сума, менша за замовлення.
         $this->addBackendBlock('novaposhta_document_payment', 'fiscal_receipt_np_advance_notice.tpl');
-        // Модуль Нової Пошти може бути не встановлений або старої версії, а реєстрація
-        // на відсутній метод кидає виняток.
-        // @phpstan-ignore function.alreadyNarrowedType (у цьому дереві модуль є; на окремій інсталяції Checkbox — не обов'язково)
-        if (method_exists(NovaPoshtaPaymentHelper::class, 'amountDueOnPickup')) {
-            $this->registerChainExtension(
-                ['class' => NovaPoshtaPaymentHelper::class, 'method' => 'amountDueOnPickup'],
-                ['class' => BackendExtender::class,         'method' => 'amountDueOnPickup']
-            );
+        foreach (self::amountDueHooks() as $hook) {
+            $this->registerChainExtension($hook, ['class' => BackendExtender::class, 'method' => 'amountDueOnPickup']);
         }
 
         // Без способу оплати Checkbox не знає форми фіскалізації. prepareAdd і
@@ -435,5 +430,21 @@ class Init extends AbstractInit
         }
 
         return $sl->getService(Database::class)->results() !== [];
+    }
+
+    /**
+     * Методи модулів Нової Пошти, що рахують суму до сплати при отриманні; Checkbox віднімає з неї аванс.
+     * Модуль може бути не встановлений або старої версії, а реєстрація на відсутній метод кидає виняток.
+     *
+     * @return list<array{class: class-string, method: string}>
+     */
+    public static function amountDueHooks(): array
+    {
+        $candidates = [
+            ['class' => AmountDue::class, 'method' => 'onPickup'],
+            ['class' => NovaPoshtaPaymentHelper::class, 'method' => 'amountDueOnPickup'],
+        ];
+
+        return array_values(array_filter($candidates, static fn(array $hook): bool => method_exists($hook['class'], $hook['method'])));
     }
 }

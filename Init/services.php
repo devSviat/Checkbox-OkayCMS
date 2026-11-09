@@ -16,6 +16,8 @@ use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxHelper;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxPrepaymentHelper;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxReceiptsHelper;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxShiftsHelper;
+use Okay\Modules\Sviat\Checkbox\Helpers\NovaPoshtaReceived;
+use Okay\Core\Modules\Modules;
 use Okay\Modules\Sviat\Checkbox\Security\AdminIdentity;
 
 return [
@@ -41,6 +43,10 @@ return [
     CheckboxPrepaymentHelper::class => [
         'class' => CheckboxPrepaymentHelper::class,
         'arguments' => [],
+    ],
+    NovaPoshtaReceived::class => [
+        'class' => NovaPoshtaReceived::class,
+        'arguments' => [new SR(Modules::class), new SR(EntityFactory::class)],
     ],
     CheckboxHelper::class => [
         'class' => CheckboxHelper::class,

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Okay\Modules\Sviat\Checkbox\Helpers;
 
-use Okay\Core\Modules\Modules;
 use Okay\Core\ServiceLocator;
 use Okay\Core\Settings;
 
@@ -19,7 +18,6 @@ class CheckboxHelper
     private CheckboxReceiptsHelper $receiptsHelper;
     private CheckboxPrepaymentHelper $prepaymentHelper;
     private Settings $settings;
-    private Modules $modules;
 
     public function __construct(
         CheckboxApiHelper $apiHelper,
@@ -34,7 +32,6 @@ class CheckboxHelper
 
         $serviceLocator = ServiceLocator::getInstance();
         $this->settings = $serviceLocator->getService(Settings::class);
-        $this->modules = $serviceLocator->getService(Modules::class);
 
         // Поділяємо один токен і стан помилок між усіма хелперами
         $this->shiftsHelper->syncWithHelper($this->apiHelper);
@@ -100,12 +97,12 @@ class CheckboxHelper
     }
 
     /**
-     * Cron-точка входу: перевіряє наявність модуля NovaPoshtaTracking і налаштування
+     * Cron-точка входу: перевіряє наявність модуля Нової Пошти (нового чи старого) і налаштування
      * sviat__checkbox__create_receipt_on_received перед запуском обробки.
      */
     public function processReceivedOrders()
     {
-        if (!$this->modules->isActiveModule('Sviat', 'NovaPoshtaTracking')) {
+        if (!ServiceLocator::getInstance()->getService(NovaPoshtaReceived::class)->available()) {
             return false;
         }
         if (empty($this->settings->get('sviat__checkbox__create_receipt_on_received'))) {

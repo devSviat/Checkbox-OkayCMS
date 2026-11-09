@@ -36,7 +36,7 @@
 ### Автоматизація
 
 - Автоматичне створення чека при переході замовлення у вказаний статус: замовлення стає оплаченим, зміна відкривається сама.
-- Автоматичне створення чека при отриманні посилки Новою Поштою (потребує модуля [NovaPoshtaTracking](https://github.com/devSviat/NovaPoshtaTracking-OkayCMS)).
+- Автоматичне створення чека при отриманні посилки Новою Поштою (потребує модуля [Нова Пошта](https://github.com/devSviat/NovaPoshta-OkayCMS) або старого [NovaPoshtaTracking](https://github.com/devSviat/NovaPoshtaTracking-OkayCMS)).
 - Cron-завдання запускаються через вбудований планувальник OkayCMS.
 
 ### Налаштування способів оплати
@@ -49,7 +49,7 @@
 - Перевірено на PHP 8.5
 - OkayCMS 4.5.3 (чиста або [форк](https://github.com/devSviat/OkayCMS-Fork))
 - Обліковий запис касира на [my.checkbox.ua](https://my.checkbox.ua) (логін, пароль, ліцензійний ключ каси)
-- Модуль [**NovaPoshtaTracking**](https://github.com/devSviat/NovaPoshtaTracking-OkayCMS) (опціонально — для автоматичної фіскалізації при отриманні Новою Поштою)
+- Модуль [**Нова Пошта**](https://github.com/devSviat/NovaPoshta-OkayCMS) або старий [**NovaPoshtaTracking**](https://github.com/devSviat/NovaPoshtaTracking-OkayCMS) (опціонально — для автоматичної фіскалізації при отриманні Новою Поштою). Поки встановлені обидва, чеки йдуть на посилки з обох; модуль Нова Пошта рахує отримання за датою статусу НП, тож перенесені давні посилки чеків не отримають.
 
 ### Сумісність
 
@@ -126,7 +126,7 @@
 
 ### Автоматична фіскалізація при отриманні Новою Поштою
 
-1. Встановіть та увімкніть модуль [**NovaPoshtaTracking**](https://github.com/devSviat/NovaPoshtaTracking-OkayCMS).
+1. Встановіть та увімкніть модуль [**Нова Пошта**](https://github.com/devSviat/NovaPoshta-OkayCMS) (або старий [**NovaPoshtaTracking**](https://github.com/devSviat/NovaPoshtaTracking-OkayCMS)).
 2. На вкладці «Коли створюється чек» оберіть «Створювати автоматично» для отриманих посилок.
 3. Переконайтесь, що на сервері налаштовано cron-завдання (щохвилини):
    ```
