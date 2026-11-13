@@ -432,6 +432,11 @@ $(function(){
         $preview.text(prefix + number);
     }
 
+    // Пояснення про Viber, ціну й кнопку балансу — лише для варіантів із телефоном (2, 3, 4).
+    $(document).on('change', 'select.fn-checkbox-delivery', function(){
+        $('.fn-checkbox-phone-only').toggleClass('hidden', ['2', '3', '4'].indexOf(String($(this).val())) === -1);
+    });
+
     $(document).on('change', 'select.fn-checkbox-chain-format', checkboxRenderChainPreview);
     $(document).on('input', '.fn-checkbox-chain-prefix', checkboxRenderChainPreview);
     checkboxRenderChainPreview();

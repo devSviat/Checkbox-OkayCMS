@@ -85,8 +85,10 @@ class SettingsPageTest extends TestCase
     {
         $template = $this->template();
 
-        self::assertGreaterThan(strrpos($template, 'class="tab"'), strpos($template, 'type="submit"'));
-        self::assertLessThan(strrpos($template, '</form>'), strpos($template, 'type="submit"'));
+        $save = strpos($template, '<button type="submit" class="btn btn_blue">');
+
+        self::assertGreaterThan(strrpos($template, 'class="tab"'), $save);
+        self::assertLessThan(strpos($template, '</form>'), $save, 'кнопка збереження — у формі налаштувань');
     }
 
     public function testShiftStateComesFirst(): void

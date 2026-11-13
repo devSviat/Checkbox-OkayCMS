@@ -78,6 +78,21 @@ class CheckboxAdmin extends IndexAdmin
             $this->postRedirectGet->redirect();
         }
 
+        // Баланс SMS лише кнопкою: кожен запит — вхід касиром у бойовий API,
+        // а на відкритті сторінки відповідь здебільшого нікому не потрібна.
+        $smsBalance = null;
+        $smsCheckFailed = false;
+        if ($this->request->method('post') && $this->request->post('sviat__checkbox__sms_check_form')) {
+            if (!RequestOrigin::isFromThisSite()) {
+                $this->response->setStatusCode(403);
+                $this->response->setContent(json_encode(['message' => 'Forbidden']), RESPONSE_JSON);
+
+                return;
+            }
+            $smsBalance = $apiHelper->phoneDeliveryStatus();
+            $smsCheckFailed = $smsBalance === null;
+        }
+
         // Оновлюємо статус CLOSING-змін перед відображенням
         foreach ($shiftsEntity->find(['status' => 'CLOSING']) as $closingShift) {
             $checkboxHelper->checkShiftStatus($closingShift->shift_id);
@@ -117,11 +132,11 @@ class CheckboxAdmin extends IndexAdmin
 
         $deliveryMode = CheckboxReceiptDelivery::mode($this->settings->get(Init::SEND_MESSAGE));
         $this->design->assign('checkboxDeliveryMode', $deliveryMode);
-        // Запит до Checkbox лише тоді, коли від відповіді щось залежить: інакше
-        // кожне відкриття сторінки входило б касиром у бойовий API.
-        $this->design->assign('checkboxPhoneDelivery', CheckboxReceiptDelivery::usesPhone($deliveryMode) && $cashierConfigured
-            ? $apiHelper->phoneDeliveryEnabled()
-            : null);
+        // Блок телефону лишається видимим після натискання кнопки, хоч би який режим був збережений.
+        $this->design->assign('checkboxPhoneMode', CheckboxReceiptDelivery::usesPhone($deliveryMode) || $smsBalance !== null || $smsCheckFailed);
+        $this->design->assign('checkboxSmsBalance', $smsBalance?->hryvnias());
+        $this->design->assign('checkboxSmsWarning', $smsBalance?->warning());
+        $this->design->assign('checkboxSmsCheckFailed', $smsCheckFailed);
 
         $this->response->setContent($this->design->fetch('checkbox_admin.tpl'));
     }
