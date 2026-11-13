@@ -162,9 +162,14 @@ $lang['sviat__checkbox__shifts'] = 'Cashier shifts';
 $lang['sviat__checkbox__type_cash'] = 'Cash';
 $lang['sviat__checkbox__type_cashless'] = 'Non-cash payment';
 
-$lang['sviat__checkbox__message_how_send'] = 'Send receipt via';
+$lang['sviat__checkbox__message_how_send'] = 'Where to send the receipt';
 $lang['sviat__checkbox__message_not_send'] = 'Do not send';
 $lang['sviat__checkbox__message_email'] = 'Email';
+$lang['sviat__checkbox__message_phone'] = 'Phone (Viber or SMS)';
+$lang['sviat__checkbox__message_email_and_phone'] = 'Email and phone';
+$lang['sviat__checkbox__message_email_else_phone'] = 'Email, or phone if there is no email';
+$lang['sviat__checkbox__message_phone_hint'] = 'Checkbox sends the receipt to Viber and falls back to SMS if it is not delivered. This is a paid service: turn it on and top up the balance in your Checkbox account.';
+$lang['sviat__checkbox__message_phone_off'] = 'Sending receipts to phones is not turned on in your Checkbox account. Until it is, no receipts will go to phones.';
 
 $lang['sviat__checkbox__label_name'] = 'Checkbox label';
 $lang['sviat__checkbox__type'] = 'Checkbox payment type';

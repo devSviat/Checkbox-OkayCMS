@@ -79,6 +79,30 @@ class CheckboxApiHelper
         return $response;
     }
 
+    /**
+     * Чи ввімкнена в кабінеті Checkbox платна відправка чеків на телефон. Без неї
+     * Checkbox приймає номер у чеку й нічого не надсилає.
+     *
+     * @return bool|null null — не вдалося дізнатися
+     */
+    public function phoneDeliveryEnabled(): ?bool
+    {
+        $this->clearErrors();
+        if (empty($this->accessToken)) {
+            $this->getAccessToken();
+            if (empty($this->accessToken)) {
+                return null;
+            }
+        }
+
+        $response = $this->makeApiRequest('organization/sms-billing', [], ['method' => 'GET']);
+        if (!empty($this->errors) || !is_array($response) || !is_bool($response['can_send_sms'] ?? null)) {
+            return null;
+        }
+
+        return $response['can_send_sms'];
+    }
+
     protected function clearErrors(): void
     {
         $this->errors = [];

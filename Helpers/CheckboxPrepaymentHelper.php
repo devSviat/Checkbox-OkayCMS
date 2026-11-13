@@ -61,12 +61,20 @@ class CheckboxPrepaymentHelper extends CheckboxApiHelper
         return is_array($response) && isset($response['pre_payment_status']) ? $response : null;
     }
 
-    /** @return array|string|false */
-    public function returnChain(string $relationId, string $cashierName)
+    /**
+     * @param array|null $delivery куди надіслати чеки повернення, {@see CheckboxReceiptDelivery}
+     * @return array|string|false
+     */
+    public function returnChain(string $relationId, string $cashierName, ?array $delivery = null)
     {
+        $payload = ['cashier_name' => $cashierName];
+        if ($delivery !== null) {
+            $payload['delivery'] = $delivery;
+        }
+
         return $this->authorisedRequest(
             'prepayment-receipts/' . rawurlencode($relationId) . '/return',
-            ['cashier_name' => $cashierName],
+            $payload,
             'POST',
             'chain not returned'
         );

@@ -12,7 +12,9 @@ use Okay\Modules\Sviat\Checkbox\Entities\CashierShiftsEntity;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxChainId;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxHelper;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxPaymentCatalogue;
+use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxApiHelper;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxPaymentSources;
+use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxReceiptDelivery;
 use Okay\Modules\Sviat\Checkbox\Init\Init;
 use Okay\Modules\Sviat\Checkbox\Security\PlainSettingValue;
 use Okay\Modules\Sviat\Checkbox\Security\RequestOrigin;
@@ -23,7 +25,8 @@ class CheckboxAdmin extends IndexAdmin
     public function fetch(
         CheckboxHelper $checkboxHelper,
         CashierShiftsEntity $shiftsEntity,
-        OrderStatusEntity $orderStatusEntity
+        OrderStatusEntity $orderStatusEntity,
+        CheckboxApiHelper $apiHelper
     ) {
         // Не просто «був POST», а «прийшла саме ця форма». На сторінці є й чужі
         // форми з action="" — вихід із адмінки, наприклад, — і будь-яка з них
@@ -39,7 +42,7 @@ class CheckboxAdmin extends IndexAdmin
 
             $this->saveTextSetting('sviat__checkbox__receipt_text');
             $this->settings->set('sviat__checkbox__order_status_id', $this->request->post('sviat__checkbox__order_status_id', 'integer'));
-            $this->settings->set('sviat__checkbox__send_message', $this->request->post('sviat__checkbox__send_message', 'integer'));
+            $this->settings->set(Init::SEND_MESSAGE, CheckboxReceiptDelivery::mode($this->request->post(Init::SEND_MESSAGE)));
             $this->saveTextSetting('sviat__checkbox__cashier_login');
             $this->saveSecretSetting('sviat__checkbox__cashier_password');
             $this->saveSecretSetting('sviat__checkbox__cashier_license_key');
@@ -106,10 +109,19 @@ class CheckboxAdmin extends IndexAdmin
         $this->design->assign('checkboxPasswordIsSet', (string) $this->settings->get('sviat__checkbox__cashier_password') !== '');
         $this->design->assign('checkboxLicenseIsSet', (string) $this->settings->get('sviat__checkbox__cashier_license_key') !== '');
         $this->design->assign('checkboxReturnUrl', ReturnUrl::safe($this->request->get('return')));
-        $this->design->assign('checkboxCashierConfigured', (string) $this->settings->get('sviat__checkbox__cashier_login') !== ''
+        $cashierConfigured = (string) $this->settings->get('sviat__checkbox__cashier_login') !== ''
             && (string) $this->settings->get('sviat__checkbox__cashier_password') !== ''
-            && (string) $this->settings->get('sviat__checkbox__cashier_license_key') !== '');
+            && (string) $this->settings->get('sviat__checkbox__cashier_license_key') !== '';
+        $this->design->assign('checkboxCashierConfigured', $cashierConfigured);
         $this->design->assign('checkboxActiveShift', $shiftsEntity->getActiveShift());
+
+        $deliveryMode = CheckboxReceiptDelivery::mode($this->settings->get(Init::SEND_MESSAGE));
+        $this->design->assign('checkboxDeliveryMode', $deliveryMode);
+        // Запит до Checkbox лише тоді, коли від відповіді щось залежить: інакше
+        // кожне відкриття сторінки входило б касиром у бойовий API.
+        $this->design->assign('checkboxPhoneDelivery', CheckboxReceiptDelivery::usesPhone($deliveryMode) && $cashierConfigured
+            ? $apiHelper->phoneDeliveryEnabled()
+            : null);
 
         $this->response->setContent($this->design->fetch('checkbox_admin.tpl'));
     }
