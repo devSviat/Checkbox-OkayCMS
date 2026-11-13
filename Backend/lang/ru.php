@@ -162,9 +162,14 @@ $lang['sviat__checkbox__shifts'] = 'Смены кассира';
 $lang['sviat__checkbox__type_cash'] = 'Наличные';
 $lang['sviat__checkbox__type_cashless'] = 'Безналичный расчёт';
 
-$lang['sviat__checkbox__message_how_send'] = 'Отправить чек по';
+$lang['sviat__checkbox__message_how_send'] = 'Куда отправлять чек покупателю';
 $lang['sviat__checkbox__message_not_send'] = 'Не отправлять';
-$lang['sviat__checkbox__message_email'] = 'По Email';
+$lang['sviat__checkbox__message_email'] = 'На email';
+$lang['sviat__checkbox__message_phone'] = 'На телефон (Viber или SMS)';
+$lang['sviat__checkbox__message_email_and_phone'] = 'На email и на телефон';
+$lang['sviat__checkbox__message_email_else_phone'] = 'На email, а без email — на телефон';
+$lang['sviat__checkbox__message_phone_hint'] = 'На телефон Checkbox отправляет чек в Viber, а если он не дойдёт — SMS. Это платно: отправку включают и пополняют в кабинете Checkbox.';
+$lang['sviat__checkbox__message_phone_off'] = 'В кабинете Checkbox не включена отправка чеков на телефон. Пока её не включить, на телефон чеки не уйдут.';
 
 $lang['sviat__checkbox__label_name'] = 'Название для Checkbox';
 $lang['sviat__checkbox__type'] = 'Тип оплаты Checkbox';

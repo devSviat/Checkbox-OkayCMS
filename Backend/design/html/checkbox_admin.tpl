@@ -218,14 +218,21 @@
                     <div class="heading_label">{$btr->sviat__checkbox__message_how_send|escape}</div>
                     <div class="mb-1">
                         <select class="form-control selectpicker" name="sviat__checkbox__send_message">
-                            <option value="0" {if !$settings->sviat__checkbox__send_message}selected{/if}>
-                                {$btr->sviat__checkbox__message_not_send}
-                            </option>
-                            <option value="1" {if $settings->sviat__checkbox__send_message == 1}selected{/if}>
-                                {$btr->sviat__checkbox__message_email}
-                            </option>
+                            <option value="0" {if $checkboxDeliveryMode == 0}selected{/if}>{$btr->sviat__checkbox__message_not_send|escape}</option>
+                            <option value="1" {if $checkboxDeliveryMode == 1}selected{/if}>{$btr->sviat__checkbox__message_email|escape}</option>
+                            <option value="2" {if $checkboxDeliveryMode == 2}selected{/if}>{$btr->sviat__checkbox__message_phone|escape}</option>
+                            <option value="3" {if $checkboxDeliveryMode == 3}selected{/if}>{$btr->sviat__checkbox__message_email_and_phone|escape}</option>
+                            <option value="4" {if $checkboxDeliveryMode == 4}selected{/if}>{$btr->sviat__checkbox__message_email_else_phone|escape}</option>
                         </select>
                     </div>
+                    <p class="sviat__checkbox_sources__intro">{$btr->sviat__checkbox__message_phone_hint|escape}</p>
+                    {if $checkboxPhoneDelivery === false}
+                        <div class="alert alert--icon alert--error mb-1">
+                            <div class="alert__content">
+                                <div class="alert__title">{$btr->sviat__checkbox__message_phone_off|escape}</div>
+                            </div>
+                        </div>
+                    {/if}
                 </div>
             </div>
 

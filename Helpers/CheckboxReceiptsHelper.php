@@ -183,8 +183,8 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
             'goods' => $context['goods'],
             'payments' => $payments,
         ];
-        if ($context['email'] !== null) {
-            $orderData['delivery'] = ['email' => $context['email']];
+        if ($context['delivery'] !== null) {
+            $orderData['delivery'] = $context['delivery'];
         }
         if ($context['footer'] !== '') {
             $orderData['footer'] = $context['footer'];
@@ -623,8 +623,8 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
         if ($context['footer'] !== '') {
             $payload['footer'] = $context['footer'];
         }
-        if ($context['email'] !== null) {
-            $payload['delivery'] = ['email' => $context['email']];
+        if ($context['delivery'] !== null) {
+            $payload['delivery'] = $context['delivery'];
         }
 
         // Рядок-намір ДО виклику: якщо Checkbox створить ланцюжок, а відповідь
@@ -907,6 +907,10 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
             'cashier_name' => is_array($cashier) && isset($cashier['full_name']) ? (string)$cashier['full_name'] : '',
             'payments'     => [CheckboxPaymentForm::payment($source, $amount, $label)],
         ];
+        $delivery = $this->orderDelivery($orderId);
+        if ($delivery !== null) {
+            $payload['delivery'] = $delivery;
+        }
 
         $response = $this->withShiftRecovery(fn () => $this->prepaymentHelper->addPayment($chain['relation_id'], $payload));
         if (!empty($this->errors) || !is_array($response)) {
@@ -992,7 +996,8 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
         $cashier = $this->shiftsHelper->getCashierInfo();
         $cashierName = is_array($cashier) && isset($cashier['full_name']) ? (string)$cashier['full_name'] : '';
 
-        $response = $this->withShiftRecovery(fn () => $this->prepaymentHelper->returnChain($chain['relation_id'], $cashierName));
+        $delivery = $this->orderDelivery($orderId);
+        $response = $this->withShiftRecovery(fn () => $this->prepaymentHelper->returnChain($chain['relation_id'], $cashierName, $delivery));
         if (!empty($this->errors)) {
             return (object)['message' => $this->errors['message'] ?? 'chain return failed'];
         }
@@ -1148,7 +1153,7 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
      * позначки is_return на кожній позиції, і забутий аргумент відправив би
      * повернення в Checkbox як продаж — мовчки. Хай краще падає.
      *
-     * @return array{goods: array, goodsTotal: int, cashierName: string, footer: string, email: string|null}|array{message: string}
+     * @return array{goods: array, goodsTotal: int, cashierName: string, footer: string, delivery: array|null}|array{message: string}
      */
     private function buildOrderContext(int $orderId, bool $isReturn): array
     {
@@ -1208,25 +1213,33 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
             ? str_replace('{$order_id}', (string)$orderId, $receiptText)
             : '';
 
-        // Налаштування «як надсилати чек» діє на всі чеки замовлення, не лише на
-        // продаж: 0 означає «не надсилати», і чек авансу не має бути винятком.
-        $email = null;
-        $sendMessageSetting = $this->settings->get('sviat__checkbox__send_message');
-        $sendMessageSetting = is_numeric($sendMessageSetting) ? (int)$sendMessageSetting : 0;
-        if (in_array($sendMessageSetting, [1, 3, 4], true) && is_string($order->email)) {
-            $validated = filter_var(trim($order->email), FILTER_VALIDATE_EMAIL);
-            if ($validated !== false) {
-                $email = $validated;
-            }
-        }
-
         return [
             'goods'       => $payload['goods'],
             'goodsTotal'  => $payload['paymentValue'],
             'cashierName' => is_array($cashier) && isset($cashier['full_name']) ? (string)$cashier['full_name'] : '',
             'footer'      => $footer,
-            'email'       => $email,
+            'delivery'    => $this->deliveryFor($order),
         ];
+    }
+
+    /**
+     * Куди Checkbox надішле чек. Налаштування діє на всі чеки замовлення:
+     * аванс, післяплату й повернення теж, інакше «не надсилати» мало б винятки.
+     */
+    private function orderDelivery(int $orderId): ?array
+    {
+        $order = $this->entityFactory->get(OrdersEntity::class)->get($orderId);
+
+        return $order ? $this->deliveryFor($order) : null;
+    }
+
+    private function deliveryFor(object $order): ?array
+    {
+        return CheckboxReceiptDelivery::payload(
+            CheckboxReceiptDelivery::mode($this->settings->get(Init::SEND_MESSAGE)),
+            is_string($order->email ?? null) ? $order->email : null,
+            is_string($order->phone ?? null) ? $order->phone : null
+        );
     }
 
     /** Checkbox наполегливо радить власний UUID чека — він же дає слід у їхніх логах. */

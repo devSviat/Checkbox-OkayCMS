@@ -11,6 +11,7 @@ use Okay\Modules\Sviat\Checkbox\Entities\FiscalReceiptsEntity;
 use Okay\Modules\Sviat\Checkbox\Extenders\BackendExtender;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxApiOutcome;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxPrepaymentHelper;
+use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxReceiptDelivery;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxReceiptsHelper;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxShiftsHelper;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -89,7 +90,9 @@ class ReceiptIdempotencyTest extends TestCase
 
         $orders = new class {
             public array $list = [];
+            public ?object $order = null;
             public function find(array $f = []) { return $this->list; }
+            public function get($id) { return $this->order; }
         };
 
         $factory = $this->createStub(EntityFactory::class);
@@ -120,12 +123,14 @@ class ReceiptIdempotencyTest extends TestCase
 
         $helper = new class ($script, $lockFree) extends CheckboxReceiptsHelper {
             public array $requests = [];
+            public array $payloads = [];
             public array $paidCalls = [];
             public int $locks = 0;
             public function __construct(public array $script, public bool $lockFree) {}
             protected function makeApiRequest(string $url, array $params = [], array $requestParams = [])
             {
                 $this->requests[] = [$requestParams['method'] ?? 'GET', $url, $params['id'] ?? null];
+                $this->payloads[] = $params;
                 [$errors, $response] = array_shift($this->script);
                 $this->errors = $errors;
                 return $response;
@@ -147,10 +152,12 @@ class ReceiptIdempotencyTest extends TestCase
                 $response = $this->api->call("prepayment-receipts/$relationId", [], 'GET');
                 return is_array($response) && isset($response['pre_payment_status']) ? $response : null;
             }
-            public function returnChain(string $relationId, string $cashierName) { return $this->api->call("prepayment-receipts/$relationId/return", [], 'POST'); }
+            public function returnChain(string $relationId, string $cashierName, ?array $delivery = null) { return $this->api->call("prepayment-receipts/$relationId/return", array_filter(['delivery' => $delivery]), 'POST'); }
         };
 
+        $settingValues = new \ArrayObject();
         $settings = $this->createStub(Settings::class);
+        $settings->method('get')->willReturnCallback(fn ($name) => $settingValues[$name] ?? null);
 
         Closure::bind(function () use ($factory, $translations, $shifts, $prepayment, $settings) {
             $this->entityFactory = $factory;
@@ -162,7 +169,7 @@ class ReceiptIdempotencyTest extends TestCase
             $this->receiptsTableReadable = true;
         }, $helper, CheckboxReceiptsHelper::class)();
 
-        return (object) ['helper' => $helper, 'entity' => $entity, 'shifts' => $shifts, 'orders' => $orders];
+        return (object) ['helper' => $helper, 'entity' => $entity, 'shifts' => $shifts, 'orders' => $orders, 'settings' => $settingValues];
     }
 
     private function send(object $env, bool $isReturn = false, ?int $rowId = null)
@@ -453,7 +460,7 @@ class ReceiptIdempotencyTest extends TestCase
 
     private function openChain(object $env)
     {
-        $context = ['cashierName' => 'Каса', 'goods' => [], 'footer' => '', 'email' => null, 'goodsTotal' => 30000];
+        $context = ['cashierName' => 'Каса', 'goods' => [], 'footer' => '', 'delivery' => null, 'goodsTotal' => 30000];
 
         return $this->callPrivate($env, 'openChain', [22991, 10000, 'cash', $context]);
     }
@@ -547,6 +554,55 @@ class ReceiptIdempotencyTest extends TestCase
         $this->closeChain($env);
 
         self::assertCount(1, $env->entity->rows);
+    }
+
+    private function buyer(object $env, int $mode): void
+    {
+        $env->settings['sviat__checkbox__send_message'] = $mode;
+        $env->orders->order = (object) ['id' => 22991, 'email' => '', 'phone' => '+380671234567'];
+    }
+
+    /** Чек авансу й так ішов покупцеві; остаточний чек ланцюжка — теж його чек. */
+    public function testAfterPaymentReceiptGoesToTheBuyer(): void
+    {
+        $env = $this->scripted([$this->chainIsPartlyPaid(), $this->done('final'), [[], ['pre_payment_status' => 'FULL_PAID']]], [$this->chainRow()]);
+        $this->buyer($env, CheckboxReceiptDelivery::EMAIL_ELSE_PHONE);
+
+        $this->closeChain($env);
+
+        self::assertSame(['POST', 'prepayment-receipts/CHAIN-1'], array_slice($env->helper->requests[1], 0, 2));
+        self::assertSame(['phone' => '380671234567'], $env->helper->payloads[1]['delivery'] ?? null);
+    }
+
+    public function testAfterPaymentHonoursDeliveryOff(): void
+    {
+        $env = $this->scripted([$this->chainIsPartlyPaid(), $this->done('final'), [[], ['pre_payment_status' => 'FULL_PAID']]], [$this->chainRow()]);
+        $this->buyer($env, CheckboxReceiptDelivery::NONE);
+
+        $this->closeChain($env);
+
+        self::assertArrayNotHasKey('delivery', $env->helper->payloads[1]);
+    }
+
+    public function testChainReturnReceiptsGoToTheBuyer(): void
+    {
+        $returned = [[], [['id' => 'ret-1', 'created_at' => '2026-01-01', 'updated_at' => '2026-01-01']]];
+        $env = $this->scripted([$returned], [$this->chainRow()]);
+        $this->buyer($env, CheckboxReceiptDelivery::PHONE);
+
+        $this->callPrivate($env, 'returnChainReceipts', [22991]);
+
+        self::assertSame(['phone' => '380671234567'], $env->helper->payloads[0]['delivery'] ?? null);
+    }
+
+    public function testAdvanceReceiptCarriesDeliveryFromContext(): void
+    {
+        $env = $this->scripted([$this->done('advance')]);
+        $context = ['cashierName' => 'Каса', 'goods' => [], 'footer' => '', 'delivery' => ['emails' => ['buyer@example.com']], 'goodsTotal' => 30000];
+
+        $this->callPrivate($env, 'openChain', [22991, 10000, 'cash', $context]);
+
+        self::assertSame(['emails' => ['buyer@example.com']], $env->helper->payloads[0]['delivery'] ?? null);
     }
 
     private function failedDocument(array $extra = []): array

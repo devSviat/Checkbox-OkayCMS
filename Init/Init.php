@@ -51,6 +51,8 @@ class Init extends AbstractInit
 
     public const REQUIRE_PAYMENT_METHOD = 'sviat__checkbox__require_payment_method';
 
+    public const SEND_MESSAGE = 'sviat__checkbox__send_message';
+
     public function install()
     {
         $this->setBackendMainController('CheckboxAdmin');
