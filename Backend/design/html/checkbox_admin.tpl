@@ -217,7 +217,7 @@
                     </div>
                     <div class="heading_label">{$btr->sviat__checkbox__message_how_send|escape}</div>
                     <div class="mb-1">
-                        <select class="form-control selectpicker" name="sviat__checkbox__send_message">
+                        <select class="form-control selectpicker fn-checkbox-delivery" name="sviat__checkbox__send_message">
                             <option value="0" {if $checkboxDeliveryMode == 0}selected{/if}>{$btr->sviat__checkbox__message_not_send|escape}</option>
                             <option value="1" {if $checkboxDeliveryMode == 1}selected{/if}>{$btr->sviat__checkbox__message_email|escape}</option>
                             <option value="2" {if $checkboxDeliveryMode == 2}selected{/if}>{$btr->sviat__checkbox__message_phone|escape}</option>
@@ -225,32 +225,35 @@
                             <option value="4" {if $checkboxDeliveryMode == 4}selected{/if}>{$btr->sviat__checkbox__message_email_else_phone|escape}</option>
                         </select>
                     </div>
-                    <p class="sviat__checkbox_sources__intro">{$btr->sviat__checkbox__message_phone_hint|escape}</p>
-                    {if $checkboxCashierConfigured}
-                        <button type="submit" form="checkbox_sms_check" class="btn btn_small btn-outline-info mb-1">{$btr->sviat__checkbox__sms_check_button|escape}</button>
-                    {/if}
-                    {if $checkboxSmsCheckFailed}
-                        <div class="alert alert--icon alert--error mb-1">
-                            <div class="alert__content">
-                                <div class="alert__title">{$btr->sviat__checkbox__sms_check_failed|escape}</div>
-                            </div>
-                        </div>
-                    {elseif $checkboxSmsWarning == 'off'}
-                        <div class="alert alert--icon alert--error mb-1">
-                            <div class="alert__content">
-                                <div class="alert__title">{$btr->sviat__checkbox__message_phone_off|escape}</div>
-                            </div>
-                        </div>
-                    {elseif $checkboxSmsBalance}
-                        <p class="sviat__checkbox_sources__intro">{$btr->sviat__checkbox__sms_balance|escape}: <strong>{$checkboxSmsBalance|escape} ₴</strong></p>
-                        {if $checkboxSmsWarning == 'low'}
-                            <div class="alert alert--icon alert--warning mb-1">
+                    {* Ціна, Viber і баланс стосуються лише відправки на телефон. *}
+                    <div class="fn-checkbox-phone-only{if !$checkboxPhoneMode} hidden{/if}">
+                        <p class="sviat__checkbox_sources__intro">{$btr->sviat__checkbox__message_phone_hint|escape}</p>
+                        {if $checkboxCashierConfigured}
+                            <button type="submit" form="checkbox_sms_check" class="btn btn_small btn-outline-info mb-1">{$btr->sviat__checkbox__sms_check_button|escape}</button>
+                        {/if}
+                        {if $checkboxSmsCheckFailed}
+                            <div class="alert alert--icon alert--error mb-1">
                                 <div class="alert__content">
-                                    <div class="alert__title">{$btr->sviat__checkbox__sms_balance_low|escape}</div>
+                                    <div class="alert__title">{$btr->sviat__checkbox__sms_check_failed|escape}</div>
                                 </div>
                             </div>
+                        {elseif $checkboxSmsWarning == 'off'}
+                            <div class="alert alert--icon alert--error mb-1">
+                                <div class="alert__content">
+                                    <div class="alert__title">{$btr->sviat__checkbox__message_phone_off|escape}</div>
+                                </div>
+                            </div>
+                        {elseif $checkboxSmsBalance}
+                            <p class="sviat__checkbox_sources__intro">{$btr->sviat__checkbox__sms_balance|escape}: <strong>{$checkboxSmsBalance|escape} ₴</strong></p>
+                            {if $checkboxSmsWarning == 'low'}
+                                <div class="alert alert--icon alert--warning mb-1">
+                                    <div class="alert__content">
+                                        <div class="alert__title">{$btr->sviat__checkbox__sms_balance_low|escape}</div>
+                                    </div>
+                                </div>
+                            {/if}
                         {/if}
-                    {/if}
+                    </div>
                 </div>
             </div>
 

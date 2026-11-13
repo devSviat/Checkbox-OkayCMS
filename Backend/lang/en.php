@@ -164,14 +164,14 @@ $lang['sviat__checkbox__type_cashless'] = 'Non-cash payment';
 
 $lang['sviat__checkbox__message_how_send'] = 'Where to send the receipt';
 $lang['sviat__checkbox__message_not_send'] = 'Do not send';
-$lang['sviat__checkbox__message_email'] = 'Email';
-$lang['sviat__checkbox__message_phone'] = 'Phone (Viber or SMS)';
-$lang['sviat__checkbox__message_email_and_phone'] = 'Email and phone';
-$lang['sviat__checkbox__message_email_else_phone'] = 'Email, or phone if there is no email';
-$lang['sviat__checkbox__message_phone_hint'] = 'Checkbox sends the receipt to Viber and falls back to SMS if it is not delivered. This is a paid service: turn it on and top up the balance in your Checkbox account. An order paid in parts has several receipts (advance, remainder, return), and each one is a separate message.';
-$lang['sviat__checkbox__message_phone_off'] = 'Sending receipts to phones is not turned on in your Checkbox account. Until it is, no receipts will go to phones.';
-$lang['sviat__checkbox__sms_balance'] = 'Checkbox SMS credit (money and SMS package together)';
-$lang['sviat__checkbox__sms_balance_low'] = 'The SMS balance is running low. When it runs out, receipts will stop going to phones. Top it up in your Checkbox account or turn on automatic top-up there.';
+$lang['sviat__checkbox__message_email'] = 'By email';
+$lang['sviat__checkbox__message_phone'] = 'By phone';
+$lang['sviat__checkbox__message_email_and_phone'] = 'By email and by phone';
+$lang['sviat__checkbox__message_email_else_phone'] = 'By email, or by phone if there is no email';
+$lang['sviat__checkbox__message_phone_hint'] = 'The receipt goes to Viber, and by SMS if Viber does not deliver it. Each receipt sent to a phone is paid as a separate message. An order paid in parts gets two or three receipts. Top up the message balance in your Checkbox account.';
+$lang['sviat__checkbox__message_phone_off'] = 'Sending receipts to phones is turned off in your Checkbox account, so they do not reach phones.';
+$lang['sviat__checkbox__sms_balance'] = 'SMS balance (money and bought SMS together)';
+$lang['sviat__checkbox__sms_balance_low'] = 'The balance is almost used up. When it runs out, receipts will stop reaching phones. Top it up or turn on automatic payment in your Checkbox account.';
 $lang['sviat__checkbox__sms_check_button'] = 'Check SMS balance';
 $lang['sviat__checkbox__sms_check_failed'] = 'Checkbox did not respond. Try again in a minute.';
 

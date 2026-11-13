@@ -132,6 +132,8 @@ class CheckboxAdmin extends IndexAdmin
 
         $deliveryMode = CheckboxReceiptDelivery::mode($this->settings->get(Init::SEND_MESSAGE));
         $this->design->assign('checkboxDeliveryMode', $deliveryMode);
+        // Блок телефону лишається видимим після натискання кнопки, хоч би який режим був збережений.
+        $this->design->assign('checkboxPhoneMode', CheckboxReceiptDelivery::usesPhone($deliveryMode) || $smsBalance !== null || $smsCheckFailed);
         $this->design->assign('checkboxSmsBalance', $smsBalance?->hryvnias());
         $this->design->assign('checkboxSmsWarning', $smsBalance?->warning());
         $this->design->assign('checkboxSmsCheckFailed', $smsCheckFailed);
