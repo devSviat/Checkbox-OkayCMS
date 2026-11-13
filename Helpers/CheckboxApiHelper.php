@@ -80,12 +80,12 @@ class CheckboxApiHelper
     }
 
     /**
-     * Чи ввімкнена в кабінеті Checkbox платна відправка чеків на телефон. Без неї
-     * Checkbox приймає номер у чеку й нічого не надсилає.
+     * Чи ввімкнена в кабінеті Checkbox платна відправка чеків на телефон і скільки
+     * на неї лишилось грошей. Без неї Checkbox приймає номер у чеку й нічого не надсилає.
      *
-     * @return bool|null null — не вдалося дізнатися
+     * @return CheckboxSmsBalance|null null — не вдалося дізнатися
      */
-    public function phoneDeliveryEnabled(): ?bool
+    public function phoneDeliveryStatus(): ?CheckboxSmsBalance
     {
         $this->clearErrors();
         if (empty($this->accessToken)) {
@@ -96,11 +96,11 @@ class CheckboxApiHelper
         }
 
         $response = $this->makeApiRequest('organization/sms-billing', [], ['method' => 'GET']);
-        if (!empty($this->errors) || !is_array($response) || !is_bool($response['can_send_sms'] ?? null)) {
+        if (!empty($this->errors) || !is_array($response)) {
             return null;
         }
 
-        return $response['can_send_sms'];
+        return CheckboxSmsBalance::fromApi($response);
     }
 
     protected function clearErrors(): void

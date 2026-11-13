@@ -76,18 +76,18 @@ class ReceiptDeliveryTest extends TestCase
         self::assertTrue(Delivery::usesPhone(Delivery::EMAIL_ELSE_PHONE));
     }
 
-    /** @return iterable<string, array{array, mixed, ?bool}> */
+    /** @return iterable<string, array{array, mixed, ?array}> */
     public static function billing(): iterable
     {
-        yield 'enabled in Checkbox' => [[], ['can_send_sms' => true, 'billing_enabled' => true, 'balance' => 10], true];
-        yield 'not enabled' => [[], ['can_send_sms' => false, 'billing_enabled' => false, 'balance' => 0], false];
+        yield 'enabled in Checkbox' => [[], ['can_send_sms' => true, 'billing_enabled' => true, 'balance' => 37844], [true, 37844]];
+        yield 'not enabled' => [[], ['can_send_sms' => false, 'billing_enabled' => false, 'balance' => 0], [false, 0]];
         yield 'request failed: unknown, not "off"' => [['message' => 'timed out'], false, null];
         yield 'unexpected body' => [[], ['detail' => 'x'], null];
     }
 
     /** Без увімкненої послуги Checkbox приймає номер і мовчки нічого не надсилає. */
     #[DataProvider('billing')]
-    public function testPhoneDeliveryStatusComesFromCheckbox(array $errors, mixed $response, ?bool $expected): void
+    public function testPhoneDeliveryStatusComesFromCheckbox(array $errors, mixed $response, ?array $expected): void
     {
         $api = new class ($errors, $response) extends CheckboxApiHelper {
             public array $urls = [];
@@ -101,7 +101,9 @@ class ReceiptDeliveryTest extends TestCase
             protected function logFailure(string $event, array $context = []): void {}
         };
 
-        self::assertSame($expected, $api->phoneDeliveryEnabled());
+        $status = $api->phoneDeliveryStatus();
+
+        self::assertSame($expected, $status === null ? null : [$status->enabled, $status->balanceKopiyky]);
         self::assertSame(['GET organization/sms-billing'], $api->urls);
     }
 }

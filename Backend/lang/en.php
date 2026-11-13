@@ -168,8 +168,12 @@ $lang['sviat__checkbox__message_email'] = 'Email';
 $lang['sviat__checkbox__message_phone'] = 'Phone (Viber or SMS)';
 $lang['sviat__checkbox__message_email_and_phone'] = 'Email and phone';
 $lang['sviat__checkbox__message_email_else_phone'] = 'Email, or phone if there is no email';
-$lang['sviat__checkbox__message_phone_hint'] = 'Checkbox sends the receipt to Viber and falls back to SMS if it is not delivered. This is a paid service: turn it on and top up the balance in your Checkbox account.';
+$lang['sviat__checkbox__message_phone_hint'] = 'Checkbox sends the receipt to Viber and falls back to SMS if it is not delivered. This is a paid service: turn it on and top up the balance in your Checkbox account. An order paid in parts has several receipts (advance, remainder, return), and each one is a separate message.';
 $lang['sviat__checkbox__message_phone_off'] = 'Sending receipts to phones is not turned on in your Checkbox account. Until it is, no receipts will go to phones.';
+$lang['sviat__checkbox__sms_balance'] = 'Checkbox SMS credit (money and SMS package together)';
+$lang['sviat__checkbox__sms_balance_low'] = 'The SMS balance is running low. When it runs out, receipts will stop going to phones. Top it up in your Checkbox account or turn on automatic top-up there.';
+$lang['sviat__checkbox__sms_check_button'] = 'Check SMS balance';
+$lang['sviat__checkbox__sms_check_failed'] = 'Checkbox did not respond. Try again in a minute.';
 
 $lang['sviat__checkbox__label_name'] = 'Checkbox label';
 $lang['sviat__checkbox__type'] = 'Checkbox payment type';

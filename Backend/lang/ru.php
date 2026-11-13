@@ -168,8 +168,12 @@ $lang['sviat__checkbox__message_email'] = 'На email';
 $lang['sviat__checkbox__message_phone'] = 'На телефон (Viber или SMS)';
 $lang['sviat__checkbox__message_email_and_phone'] = 'На email и на телефон';
 $lang['sviat__checkbox__message_email_else_phone'] = 'На email, а без email — на телефон';
-$lang['sviat__checkbox__message_phone_hint'] = 'На телефон Checkbox отправляет чек в Viber, а если он не дойдёт — SMS. Это платно: отправку включают и пополняют в кабинете Checkbox.';
+$lang['sviat__checkbox__message_phone_hint'] = 'На телефон Checkbox отправляет чек в Viber, а если он не дойдёт — SMS. Это платно: отправку включают и пополняют в кабинете Checkbox. У заказа с предоплатой несколько чеков (аванс, доплата, возврат), и каждый — отдельное сообщение.';
 $lang['sviat__checkbox__message_phone_off'] = 'В кабинете Checkbox не включена отправка чеков на телефон. Пока её не включить, на телефон чеки не уйдут.';
+$lang['sviat__checkbox__sms_balance'] = 'Остаток на SMS в Checkbox (деньги и пакет SMS вместе)';
+$lang['sviat__checkbox__sms_balance_low'] = 'Баланс для SMS заканчивается. Когда деньги закончатся, чеки на телефон перестанут приходить. Пополните баланс в кабинете Checkbox или подключите там автосписание.';
+$lang['sviat__checkbox__sms_check_button'] = 'Проверить баланс SMS';
+$lang['sviat__checkbox__sms_check_failed'] = 'Checkbox не ответил. Попробуйте ещё раз через минуту.';
 
 $lang['sviat__checkbox__label_name'] = 'Название для Checkbox';
 $lang['sviat__checkbox__type'] = 'Тип оплаты Checkbox';

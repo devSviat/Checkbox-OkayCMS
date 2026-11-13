@@ -226,12 +226,30 @@
                         </select>
                     </div>
                     <p class="sviat__checkbox_sources__intro">{$btr->sviat__checkbox__message_phone_hint|escape}</p>
-                    {if $checkboxPhoneDelivery === false}
+                    {if $checkboxCashierConfigured}
+                        <button type="submit" form="checkbox_sms_check" class="btn btn_small btn-outline-info mb-1">{$btr->sviat__checkbox__sms_check_button|escape}</button>
+                    {/if}
+                    {if $checkboxSmsCheckFailed}
+                        <div class="alert alert--icon alert--error mb-1">
+                            <div class="alert__content">
+                                <div class="alert__title">{$btr->sviat__checkbox__sms_check_failed|escape}</div>
+                            </div>
+                        </div>
+                    {elseif $checkboxSmsWarning == 'off'}
                         <div class="alert alert--icon alert--error mb-1">
                             <div class="alert__content">
                                 <div class="alert__title">{$btr->sviat__checkbox__message_phone_off|escape}</div>
                             </div>
                         </div>
+                    {elseif $checkboxSmsBalance}
+                        <p class="sviat__checkbox_sources__intro">{$btr->sviat__checkbox__sms_balance|escape}: <strong>{$checkboxSmsBalance|escape} ₴</strong></p>
+                        {if $checkboxSmsWarning == 'low'}
+                            <div class="alert alert--icon alert--warning mb-1">
+                                <div class="alert__content">
+                                    <div class="alert__title">{$btr->sviat__checkbox__sms_balance_low|escape}</div>
+                                </div>
+                            </div>
+                        {/if}
                     {/if}
                 </div>
             </div>
@@ -443,6 +461,12 @@
             </button>
         </div>
     </div>
+</form>
+
+{* Окрема форма: кнопка всередині форми налаштувань зберегла б і їх. *}
+<form id="checkbox_sms_check" method="post" action="index.php?controller=Sviat.Checkbox.CheckboxAdmin&amp;active_tab=checkbox_receipt">
+    <input type="hidden" name="session_id" value="{$smarty.session.id}">
+    <input type="hidden" name="sviat__checkbox__sms_check_form" value="1">
 </form>
 
 <script>
