@@ -28,6 +28,7 @@ use Okay\Modules\Sviat\Checkbox\Extenders\BackendExtender;
 use Okay\Modules\Sviat\Checkbox\Entities\CashierShiftsEntity;
 use Okay\Modules\Sviat\Checkbox\Entities\FiscalReceiptsEntity;
 use Okay\Modules\Sviat\NovaPoshta\Waybills\AmountDue;
+use Okay\Modules\Sviat\Ukrposhta\Shipments\AmountDue as UkrposhtaAmountDue;
 use Okay\Modules\Sviat\NovaPoshtaTracking\Helpers\NovaPoshtaPaymentHelper;
 
 class Init extends AbstractInit
@@ -312,6 +313,7 @@ class Init extends AbstractInit
         $this->addBackendBlock('order_payment_info', 'checkbox_order_payment_required.tpl');
         // Менеджер бачить, звідки в накладній узялась сума, менша за замовлення.
         $this->addBackendBlock('novaposhta_document_payment', 'fiscal_receipt_np_advance_notice.tpl');
+        $this->addBackendBlock('ukrposhta_shipment_payment', 'fiscal_receipt_np_advance_notice.tpl');
         foreach (self::amountDueHooks() as $hook) {
             $this->registerChainExtension($hook, ['class' => BackendExtender::class, 'method' => 'amountDueOnPickup']);
         }
@@ -435,7 +437,7 @@ class Init extends AbstractInit
     }
 
     /**
-     * Методи модулів Нової Пошти, що рахують суму до сплати при отриманні; Checkbox віднімає з неї аванс.
+     * Методи модулів Нової Пошти й Укрпошти, що рахують суму до сплати при отриманні; Checkbox віднімає з неї аванс.
      * Модуль може бути не встановлений або старої версії, а реєстрація на відсутній метод кидає виняток.
      *
      * @return list<array{class: class-string, method: string}>
@@ -444,6 +446,7 @@ class Init extends AbstractInit
     {
         $candidates = [
             ['class' => AmountDue::class, 'method' => 'onPickup'],
+            ['class' => UkrposhtaAmountDue::class, 'method' => 'onPickup'],
             ['class' => NovaPoshtaPaymentHelper::class, 'method' => 'amountDueOnPickup'],
         ];
 

@@ -128,10 +128,10 @@
                 <div class="sviat__checkbox_trigger">
                     <div class="sviat__checkbox_trigger__text">
                         <div class="sviat__checkbox_trigger__title">{$btr->sviat__checkbox__trigger_np_title|escape}</div>
-                        <div>{if $is_nova_poshta_tracking_installed}{$btr->sviat__checkbox__trigger_np_text|escape}{else}{$btr->sviat__checkbox__create_receipt_on_received_info_text|escape}{/if}</div>
+                        <div>{if $is_carrier_available}{$btr->sviat__checkbox__trigger_np_text|escape}{else}{$btr->sviat__checkbox__create_receipt_on_received_info_text|escape}{/if}</div>
                     </div>
                     <div class="sviat__checkbox_trigger__control">
-                        {if $is_nova_poshta_tracking_installed}
+                        {if $is_carrier_available}
                             <select class="form-control selectpicker" name="sviat__checkbox__create_receipt_on_received">
                                 <option value="0" {if !$settings->sviat__checkbox__create_receipt_on_received}selected{/if}>
                                     {$btr->sviat__checkbox__create_receipt_on_received_no}
