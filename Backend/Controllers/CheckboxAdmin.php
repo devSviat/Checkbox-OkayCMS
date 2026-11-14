@@ -6,7 +6,7 @@ namespace Okay\Modules\Sviat\Checkbox\Backend\Controllers;
 
 use Okay\Admin\Controllers\IndexAdmin;
 use Okay\Core\ServiceLocator;
-use Okay\Modules\Sviat\Checkbox\Helpers\NovaPoshtaReceived;
+use Okay\Modules\Sviat\Checkbox\Carriers\ReceivedParcels;
 use Okay\Entities\OrderStatusEntity;
 use Okay\Modules\Sviat\Checkbox\Entities\CashierShiftsEntity;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxChainId;
@@ -59,10 +59,10 @@ class CheckboxAdmin extends IndexAdmin
             );
             $this->settings->set(Init::CHAIN_PREFIX, CheckboxChainId::normalisePrefix($this->request->post(Init::CHAIN_PREFIX)));
 
-            if (ServiceLocator::getInstance()->getService(NovaPoshtaReceived::class)->available()) {
+            if (ServiceLocator::getInstance()->getService(ReceivedParcels::class)->available()) {
                 $this->settings->set('sviat__checkbox__create_receipt_on_received', $this->request->post('sviat__checkbox__create_receipt_on_received', 'integer'));
             } else {
-                // Якщо модуль НП вимкнено — скидаємо налаштування, щоб cron не запускався
+                // Якщо жодного перевізника немає — скидаємо налаштування, щоб cron не запускався
                 $this->settings->set('sviat__checkbox__create_receipt_on_received', 0);
             }
 
@@ -119,7 +119,7 @@ class CheckboxAdmin extends IndexAdmin
         ));
 
         $this->design->assign('orders_statuses', $orderStatusEntity->find());
-        $this->design->assign('is_nova_poshta_tracking_installed', ServiceLocator::getInstance()->getService(NovaPoshtaReceived::class)->available());
+        $this->design->assign('is_carrier_available', ServiceLocator::getInstance()->getService(ReceivedParcels::class)->available());
         $this->design->assign('checkbox_installed_at', $installedAtInput);
         $this->design->assign('checkboxPasswordIsSet', (string) $this->settings->get('sviat__checkbox__cashier_password') !== '');
         $this->design->assign('checkboxLicenseIsSet', (string) $this->settings->get('sviat__checkbox__cashier_license_key') !== '');

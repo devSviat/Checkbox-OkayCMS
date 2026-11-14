@@ -1,6 +1,6 @@
 <?php
 
-namespace Okay\Modules\Sviat\Checkbox\Helpers;
+namespace Okay\Modules\Sviat\Checkbox\Carriers;
 
 use Closure;
 use Okay\Core\EntityFactory;
@@ -13,7 +13,7 @@ use Okay\Modules\Sviat\NovaPoshtaTracking\Entities\NovaPoshtaTrackingEntity;
  * Замовлення, чию посилку Нова Пошта видала отримувачу. Питає модуль Sviat/NovaPoshta і старий
  * NovaPoshtaTracking — той, що ввімкнений; поки встановлені обидва, замовлення з обох.
  */
-final class NovaPoshtaReceived
+final class NovaPoshtaReceived implements ReceivedParcels
 {
     private const string RECEIVED = '9';
     private const string BEGINNING = '1970-01-01 00:00:00';

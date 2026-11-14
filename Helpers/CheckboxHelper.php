@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Okay\Modules\Sviat\Checkbox\Helpers;
 
 use Okay\Core\ServiceLocator;
+use Okay\Modules\Sviat\Checkbox\Carriers\ReceivedParcels;
 use Okay\Core\Settings;
 
 /**
@@ -97,12 +98,12 @@ class CheckboxHelper
     }
 
     /**
-     * Cron-точка входу: перевіряє наявність модуля Нової Пошти (нового чи старого) і налаштування
+     * Cron-точка входу: перевіряє, чи є модуль перевізника (Нова Пошта чи Укрпошта) і налаштування
      * sviat__checkbox__create_receipt_on_received перед запуском обробки.
      */
     public function processReceivedOrders()
     {
-        if (!ServiceLocator::getInstance()->getService(NovaPoshtaReceived::class)->available()) {
+        if (!ServiceLocator::getInstance()->getService(ReceivedParcels::class)->available()) {
             return false;
         }
         if (empty($this->settings->get('sviat__checkbox__create_receipt_on_received'))) {

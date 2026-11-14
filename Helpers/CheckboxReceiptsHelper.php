@@ -14,6 +14,7 @@ use Okay\Entities\ProductsEntity;
 use Okay\Entities\PurchasesEntity;
 use Okay\Entities\VariantsEntity;
 use Okay\Helpers\OrdersHelper;
+use Okay\Modules\Sviat\Checkbox\Carriers\ReceivedParcels;
 use Okay\Modules\Sviat\Checkbox\Entities\CashierShiftsEntity;
 use Okay\Modules\Sviat\Checkbox\Entities\FiscalReceiptsEntity;
 use Okay\Modules\Sviat\Checkbox\Entities\TaxGroupsEntity;
@@ -1253,10 +1254,10 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
     }
 
     /**
-     * Cron-задача: знаходить ТТН зі статусом "Отримано" (код 9) і позначає замовлення як оплачені.
+     * Cron-задача: знаходить посилки зі статусом "Отримано" (Нова Пошта, Укрпошта) і позначає замовлення як оплачені.
      * Обробляються тільки посилки, отримані після sviat__checkbox__installed_at —
      * це захист від масового виставлення чеків при першому запуску модуля.
-     * Посилки беруться з обох модулів Нової Пошти (NovaPoshtaReceived).
+     * Посилки віддає ReceivedParcels.
      *
      * Позначення замовлення як paid тригерить хук orderMarkedPaid → createReceiptsForPaidOrders,
      * який сам відкриє зміну, перевірить PAYMENT_SKIP та дублікати і створить чек.
@@ -1268,7 +1269,7 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
     {
         $installedAt = $this->settings->get('sviat__checkbox__installed_at');
         $installedTimestamp = !empty($installedAt) ? strtotime($installedAt) : false;
-        $orderIds = ServiceLocator::getInstance()->getService(NovaPoshtaReceived::class)
+        $orderIds = ServiceLocator::getInstance()->getService(ReceivedParcels::class)
             ->orderIds($installedTimestamp !== false ? date('Y-m-d H:i:s', $installedTimestamp) : null);
 
         if (empty($orderIds)) {

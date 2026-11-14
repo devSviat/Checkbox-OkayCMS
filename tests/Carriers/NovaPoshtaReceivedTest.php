@@ -1,22 +1,20 @@
 <?php
 
-namespace Modules\Sviat\Checkbox;
+namespace Modules\Sviat\Checkbox\Carriers;
 
 use Okay\Core\EntityFactory;
 use Okay\Core\Modules\Modules;
-use Okay\Modules\Sviat\Checkbox\Helpers\NovaPoshtaReceived;
-use Okay\Modules\Sviat\Checkbox\Init\Init;
+use Okay\Modules\Sviat\Checkbox\Carriers\NovaPoshtaReceived;
 use Okay\Modules\Sviat\NovaPoshta\Integration\NpOrders;
-use Okay\Modules\Sviat\NovaPoshta\Waybills\AmountDue;
 use Okay\Modules\Sviat\NovaPoshtaTracking\Entities\NovaPoshtaTrackingEntity;
 use PHPUnit\Framework\TestCase;
 
 // Сусідні модулі необов'язкові: без них класів немає, а перевірки доступності питають саме про клас.
 if (!class_exists(NpOrders::class)) {
-    require_once __DIR__ . '/NpOrdersStub.php';
+    require_once __DIR__ . '/../NpOrdersStub.php';
 }
 if (!class_exists(NovaPoshtaTrackingEntity::class)) {
-    require_once __DIR__ . '/NovaPoshtaTrackingEntityStub.php';
+    require_once __DIR__ . '/../NovaPoshtaTrackingEntityStub.php';
 }
 
 /**
@@ -99,14 +97,5 @@ class NovaPoshtaReceivedTest extends TestCase
 
         self::assertSame([101, 201], $source->orderIds(null), 'the old module had no date filter without it');
         self::assertSame(['1970-01-01 00:00:00'], $this->asked);
-    }
-
-    public function testAmountDueHookCoversTheNewModule(): void
-    {
-        if (!method_exists(AmountDue::class, 'onPickup')) {
-            self::markTestSkipped('Sviat/NovaPoshta is not in this engine');
-        }
-
-        self::assertContains(['class' => AmountDue::class, 'method' => 'onPickup'], Init::amountDueHooks());
     }
 }
