@@ -8,6 +8,8 @@ use Okay\Entities\OrdersEntity;
 use Okay\Entities\PaymentsEntity;
 use Okay\Entities\PurchasesEntity;
 use Okay\Modules\Sviat\Checkbox\Entities\FiscalReceiptsEntity;
+use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxChainDecision;
+use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxPrepaymentHelper;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxReceiptsHelper;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxShiftsHelper;
 use Okay\Modules\Sviat\Checkbox\Init\Init;
@@ -54,6 +56,50 @@ class ShiftOpensOnlyForRealReceiptTest extends TestCase
 
         self::assertSame(1, $run->shiftOpenings);
         self::assertSame([[1, null]], $run->fiscalised);
+    }
+
+    /**
+     * Збережений стан застаріває: аванс могли закрити чи повернути з кабінету
+     * Checkbox. Зміну відкриваємо лише під залишок, який Checkbox підтвердив.
+     */
+    public function testChainThatCheckboxDoesNotFindOpensNoShiftAndStops(): void
+    {
+        $chain = $this->chain('PARTIAL_PAID');
+        $run = $this->fiscaliseBatch([1 => $chain], [], true, [1 => ['pre_payment_status' => CheckboxChainDecision::STATUS_NOT_FOUND]]);
+
+        self::assertSame(0, $run->shiftOpenings);
+        self::assertSame([], $run->fiscalised);
+        self::assertSame(1, $run->statusRequests);
+        self::assertSame(CheckboxChainDecision::STATUS_NOT_FOUND, $chain[0]->chain_status);
+        self::assertSame(['chain not found in Checkbox'], $run->warned);
+
+        // Наступний тік: стан уже збережений, у мережу не йдемо і нічого не пишемо.
+        $next = $this->fiscaliseBatch([1 => $chain]);
+
+        self::assertSame(0, $next->shiftOpenings);
+        self::assertSame(0, $next->statusRequests);
+        self::assertSame([], $next->warned);
+    }
+
+    /** Checkbox не відповів: пропускаємо тік без зміни, рівно один запит стану. */
+    public function testSilentCheckboxOpensNoShiftAndAsksOnce(): void
+    {
+        $chain = $this->chain('PARTIAL_PAID');
+        $run = $this->fiscaliseBatch([1 => $chain], [], true, [1 => null]);
+
+        self::assertSame(0, $run->shiftOpenings);
+        self::assertSame([], $run->fiscalised);
+        self::assertSame(1, $run->statusRequests);
+        self::assertSame('PARTIAL_PAID', $chain[0]->chain_status);
+    }
+
+    public function testChainClosedOutsideOpensNoShift(): void
+    {
+        $chain = $this->chain('PARTIAL_PAID');
+        $run = $this->fiscaliseBatch([1 => $chain], [], true, [1 => ['pre_payment_status' => 'FULL_PAID', 'paid_sum' => 100, 'total_sum' => 100]]);
+
+        self::assertSame(0, $run->shiftOpenings);
+        self::assertSame('FULL_PAID', $chain[0]->chain_status);
     }
 
     public function testOrdinaryOrderStillOpensShift(): void
@@ -131,13 +177,17 @@ class ShiftOpensOnlyForRealReceiptTest extends TestCase
     /**
      * @param array<int, object[]> $receiptsByOrder order_id => рядки чеків
      * @param array<int, int>      $methodByOrder   order_id => спосіб оплати
+     * @param array<int, ?array>   $liveByOrder     order_id => відповідь GET стану; без запису — те, що в базі
      */
-    private function fiscaliseBatch(array $receiptsByOrder, array $methodByOrder = [], bool $tableReadable = true): object
+    private function fiscaliseBatch(array $receiptsByOrder, array $methodByOrder = [], bool $tableReadable = true, array $liveByOrder = []): object
     {
         $rows = [];
         foreach ($receiptsByOrder as $orderId => $orderRows) {
             foreach ($orderRows as $row) {
                 $row->order_id = $orderId;
+                if ($row->receipt_type === FiscalReceiptsEntity::TYPE_PREPAYMENT) {
+                    $row->relation_id = 'relation-' . $orderId;
+                }
                 $rows[] = $row;
             }
         }
@@ -184,8 +234,37 @@ class ShiftOpensOnlyForRealReceiptTest extends TestCase
                     }
                     return null;
                 }
+                public function update($id, $state)
+                {
+                    foreach ($this->rows as $row) {
+                        if ($row->id === $id) {
+                            foreach ((array)$state as $field => $value) {
+                                $row->$field = $value;
+                            }
+                        }
+                    }
+                    return $id;
+                }
             },
         ][$class] ?? null);
+
+        $live = [];
+        foreach ($rows as $row) {
+            if ($row->receipt_type === FiscalReceiptsEntity::TYPE_PREPAYMENT) {
+                $live[$row->relation_id] = array_key_exists($row->order_id, $liveByOrder)
+                    ? $liveByOrder[$row->order_id]
+                    : ['pre_payment_status' => $row->chain_status];
+            }
+        }
+        $prepayment = new class ($live) extends CheckboxPrepaymentHelper {
+            public int $requests = 0;
+            public function __construct(private array $live) {}
+            public function chainStatus(string $relationId): ?array
+            {
+                $this->requests++;
+                return $this->live[$relationId] ?? null;
+            }
+        };
 
         $shifts = new class extends CheckboxShiftsHelper {
             public int $openings = 0;
@@ -200,6 +279,7 @@ class ShiftOpensOnlyForRealReceiptTest extends TestCase
         $helper = new class extends CheckboxReceiptsHelper {
             public array $fiscalised = [];
             public array $logged = [];
+            public array $warned = [];
             public function __construct() {}
             public function fiscaliseOrder(int $orderId, ?int $emptyReceiptId = null)
             {
@@ -210,11 +290,16 @@ class ShiftOpensOnlyForRealReceiptTest extends TestCase
             {
                 $this->logged[] = $event;
             }
+            protected function logWarning(string $event, array $context = []): void
+            {
+                $this->warned[] = $event;
+            }
         };
 
-        Closure::bind(function () use ($factory, $shifts, $tableReadable) {
+        Closure::bind(function () use ($factory, $shifts, $tableReadable, $prepayment) {
             $this->entityFactory = $factory;
             $this->shiftsHelper = $shifts;
+            $this->prepaymentHelper = $prepayment;
             $this->receiptsTableReadable = $tableReadable;
         }, $helper, CheckboxReceiptsHelper::class)();
 
@@ -224,6 +309,8 @@ class ShiftOpensOnlyForRealReceiptTest extends TestCase
             'shiftOpenings' => $shifts->openings,
             'fiscalised'    => $helper->fiscalised,
             'logged'        => $helper->logged,
+            'warned'        => $helper->warned,
+            'statusRequests' => $prepayment->requests,
         ];
     }
 

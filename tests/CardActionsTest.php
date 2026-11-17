@@ -3,6 +3,7 @@
 namespace Modules\Sviat\Checkbox;
 
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxCardActions;
+use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxChainDecision;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -84,6 +85,17 @@ class CardActionsTest extends TestCase
         self::assertFalse($actions['sale']);
         self::assertFalse($actions['afterPayment']);
         self::assertFalse($actions['returnChain']);
+    }
+
+    /** Ланцюжок, якого Checkbox не знаходить, лишає менеджеру лише кнопку «Оновити стан». */
+    public function testNotFoundChainOffersNoActions(): void
+    {
+        $actions = CheckboxCardActions::forOrder(CheckboxChainDecision::STATUS_NOT_FOUND, false, true, false);
+
+        self::assertSame(
+            ['prepayment' => false, 'prepaymentHiddenByPaid' => false, 'afterPayment' => false, 'returnChain' => false, 'sale' => false, 'return' => false],
+            $actions
+        );
     }
 
     /** Виставлений чек продажу закриває обидва шляхи наперед. */

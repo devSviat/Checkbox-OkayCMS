@@ -790,6 +790,22 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
      */
     public function refreshOrderChainStatus(int $orderId): ?array
     {
+        if ($this->pullChainState($orderId) === null) {
+            return null;
+        }
+
+        return $this->orderChainStatus($orderId);
+    }
+
+    /**
+     * Один GET стану ланцюжка із записом відповіді в його рядок.
+     *
+     * @return string|null стан, який сказав Checkbox; STATUS_UNKNOWN — Checkbox
+     *                     не відповів, і збережений стан лишився як був;
+     *                     null — ланцюжка в замовлення немає
+     */
+    private function pullChainState(int $orderId): ?string
+    {
         $receiptsEntity = $this->entityFactory->get(FiscalReceiptsEntity::class);
         $chainReceipt = $receiptsEntity->order('id_desc')->findOne([
             'order_id'     => $orderId,
@@ -803,17 +819,27 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
         if ($status === null) {
             // Checkbox не відповів. Наявний стан не чіпаємо: він може бути
             // правдивим, а STATUS_UNKNOWN поверх нього лише сховав би кнопки.
-            return $this->orderChainStatus($orderId);
+            return CheckboxChainDecision::STATUS_UNKNOWN;
+        }
+
+        $state = (string)($status['pre_payment_status'] ?? CheckboxChainDecision::STATUS_UNKNOWN);
+        if ($state === CheckboxChainDecision::STATUS_NOT_FOUND) {
+            // Стан зберігається, і крон про такий ланцюжок більше не питає: від крону
+            // це один рядок на ланцюжок. Ручне «Оновити стан» додає по рядку на клік.
+            $this->logWarning('chain not found in Checkbox', [
+                'order_id'    => $orderId,
+                'relation_id' => (string)$chainReceipt->relation_id,
+            ]);
         }
 
         $this->updateChainState(
             (int)$chainReceipt->id,
-            (string)($status['pre_payment_status'] ?? CheckboxChainDecision::STATUS_UNKNOWN),
+            $state,
             isset($status['paid_sum']) ? (int)$status['paid_sum'] : null,
             isset($status['total_sum']) ? (int)$status['total_sum'] : null
         );
 
-        return $this->orderChainStatus($orderId);
+        return $state;
     }
 
     /**
@@ -838,6 +864,9 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
         $chain = $this->refreshOrderChainStatus($orderId);
         if ($chain === null) {
             return (object)['message' => $this->translations->getTranslation('sviat__checkbox__errors_no_chain')];
+        }
+        if ($chain['pre_payment_status'] === CheckboxChainDecision::STATUS_NOT_FOUND) {
+            return (object)['message' => $this->translations->getTranslation('sviat__checkbox__chain_next_not_found')];
         }
         if ($chain['pre_payment_status'] !== 'PARTIAL_PAID') {
             return (object)['message' => $this->translations->getTranslation('sviat__checkbox__errors_chain_closed')];
@@ -944,6 +973,12 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
             'receipt_type' => FiscalReceiptsEntity::TYPE_PREPAYMENT,
         ]);
         if ($chainRow && is_array($after)) {
+            if (($after['pre_payment_status'] ?? '') === CheckboxChainDecision::STATUS_NOT_FOUND) {
+                $this->logWarning('chain not found in Checkbox', [
+                    'order_id'    => $orderId,
+                    'relation_id' => $chain['relation_id'],
+                ]);
+            }
             $this->updateChainState(
                 (int)$chainRow->id,
                 (string)($after['pre_payment_status'] ?? CheckboxChainDecision::STATUS_UNKNOWN),
@@ -1380,7 +1415,16 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
             // ще до нього: кожна порожня зміна лишає Z-звіт.
             $chain = $this->orderChainStatus($orderId);
             $chainStatus = $chain === null ? null : (string)$chain['pre_payment_status'];
-            if (CheckboxChainDecision::forOrder($chainStatus, false) === CheckboxChainDecision::ACTION_NONE) {
+            $action = CheckboxChainDecision::forOrder($chainStatus, false);
+            if ($action === CheckboxChainDecision::ACTION_NONE) {
+                continue;
+            }
+            // Збережений PARTIAL_PAID міг застаріти: аванс закрили чи повернули
+            // ззовні, або Checkbox ланцюжка не знає. Зміна відкривається лише під
+            // залишок, який Checkbox підтвердив зараз. Не відповів — пропускаємо
+            // тік; not_found зберігається і далі сюди не пускає.
+            if ($action === CheckboxChainDecision::ACTION_AFTER_PAYMENT
+                && $this->pullChainState($orderId) !== 'PARTIAL_PAID') {
                 continue;
             }
             $emptyReceiptId = isset($emptyReceiptMap[$orderId]) ? (int)$emptyReceiptMap[$orderId]->id : null;

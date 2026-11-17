@@ -17,6 +17,7 @@ use Okay\Modules\Sviat\Checkbox\Entities\FiscalReceiptsEntity;
 use Okay\Modules\Sviat\Checkbox\Entities\CashierShiftsEntity;
 use Okay\Modules\Sviat\Checkbox\Entities\TaxGroupsEntity;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxCardActions;
+use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxChainDecision;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxHelper;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxOrderPaymentGuard;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxReceiptSet;
@@ -180,6 +181,7 @@ class BackendExtender implements ExtensionInterface
             'CANCELLED'         => $this->backendTranslations->getTranslation('sviat__checkbox__chain_status_cancelled'),
             'PARTIAL_CANCELLED' => $this->backendTranslations->getTranslation('sviat__checkbox__chain_status_partial_cancelled'),
             'unknown'           => $this->backendTranslations->getTranslation('sviat__checkbox__chain_status_unknown'),
+            'not_found'         => $this->backendTranslations->getTranslation('sviat__checkbox__chain_status_not_found'),
         ];
         $nextSteps = [
             'PARTIAL_PAID'      => $this->backendTranslations->getTranslation('sviat__checkbox__chain_next_partial_paid'),
@@ -187,6 +189,7 @@ class BackendExtender implements ExtensionInterface
             'CANCELLED'         => $this->backendTranslations->getTranslation('sviat__checkbox__chain_next_cancelled'),
             'PARTIAL_CANCELLED' => $this->backendTranslations->getTranslation('sviat__checkbox__chain_next_cancelled'),
             'unknown'           => $this->backendTranslations->getTranslation('sviat__checkbox__chain_next_unknown'),
+            'not_found'         => $this->backendTranslations->getTranslation('sviat__checkbox__chain_next_not_found'),
         ];
 
         // Невідомий статус із API краще показати як є, ніж порожнім місцем.
@@ -240,7 +243,9 @@ class BackendExtender implements ExtensionInterface
         if ($status === 'FULL_PAID') {
             return 0.0;
         }
-        if ($status === 'PARTIAL_PAID' && $chain['left_to_pay'] !== null) {
+        // not_found: Checkbox ланцюжка не бачить, але аванс узято й записано в нас —
+        // брати його з отримувача вдруге не можна. Без сум — повна сума, як для unknown.
+        if (in_array($status, ['PARTIAL_PAID', CheckboxChainDecision::STATUS_NOT_FOUND], true) && $chain['left_to_pay'] !== null) {
             return min((float) $amountDue, round($chain['left_to_pay'] / 100, 2));
         }
 

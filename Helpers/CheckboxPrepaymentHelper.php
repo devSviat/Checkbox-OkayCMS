@@ -12,6 +12,8 @@ namespace Okay\Modules\Sviat\Checkbox\Helpers;
  */
 class CheckboxPrepaymentHelper extends CheckboxApiHelper
 {
+    private const int HTTP_NOT_FOUND = 404;
+
     /**
      * Прив'язує $accessToken і $errors за посиланням до іншого хелпера.
      * @see CheckboxShiftsHelper::syncWithHelper()
@@ -44,21 +46,46 @@ class CheckboxPrepaymentHelper extends CheckboxApiHelper
      * повертаються з однаковим type SELL, тож з відповіді на POST неможливо
      * зрозуміти, чи ланцюжок закрився.
      *
-     * null означає «не вдалось дізнатись» — таймаут, 5xx, 403 і 404 нерозрізнимі.
+     * null означає «не вдалось дізнатись» — таймаут, 5xx, 403 тощо.
      * Викликач НЕ має права трактувати його як «ланцюжка немає»: воно веде до
      * ACTION_SALE і другого чека поверх сплаченого авансу. Для цього є
      * CheckboxChainDecision::STATUS_UNKNOWN.
+     *
+     * 404 — окремо: Checkbox відповів, що такого ланцюжка не знає («Prepayment
+     * receipt relation not found»), і повтор цього не змінить. Тоді стан —
+     * CheckboxChainDecision::STATUS_NOT_FOUND, без запису ERROR у лог.
+     *
+     * not_found — лише 404 саме на цей GET і з бізнес-полем message від Checkbox.
+     * 404 на вході касира (cashier/signin) чи загальний {"detail": "Not Found"}
+     * на невідомий маршрут про ланцюжок нічого не кажуть і лишаються null. Текст
+     * повідомлення не порівнюємо: він може змінитись. HTML-сторінка 404 від проксі
+     * http_code не ставить взагалі: processApiResponse() віддає її рядком.
      */
     public function chainStatus(string $relationId): ?array
     {
-        $response = $this->authorisedRequest(
-            'prepayment-receipts/' . rawurlencode($relationId),
-            [],
-            'GET',
-            'chain status unavailable'
-        );
+        $url = 'prepayment-receipts/' . rawurlencode($relationId);
+        $response = $this->authorisedRequest($url, [], 'GET', 'chain status unavailable', [self::HTTP_NOT_FOUND]);
+
+        if ($this->answeredNotFound($url)) {
+            $message = $this->errors['response']['message'] ?? null;
+            if (is_string($message) && $message !== '') {
+                return ['pre_payment_status' => CheckboxChainDecision::STATUS_NOT_FOUND];
+            }
+            // authorisedRequest() 404 пропустив без логу, а це звичайний збій.
+            $this->logFailure('chain status unavailable', ['url' => $url]);
+        }
 
         return is_array($response) && isset($response['pre_payment_status']) ? $response : null;
+    }
+
+    /** 404 саме на запит $url, а не на вхід касира перед ним. */
+    private function answeredNotFound(string $url): bool
+    {
+        $requestUrl = $this->errors['requestData']['url'] ?? null;
+
+        return (int)($this->errors['http_code'] ?? 0) === self::HTTP_NOT_FOUND
+            && is_string($requestUrl)
+            && str_ends_with($requestUrl, '/' . $url);
     }
 
     /**
@@ -83,9 +110,10 @@ class CheckboxPrepaymentHelper extends CheckboxApiHelper
     /**
      * @param string $failureEvent подія для логу — крон нікому не звітує, і без
      *                            запису невиставлений чек не лишає сліду ніде
+     * @param int[] $expectedHttpCodes відповіді, які викликач обробляє сам і які не є збоєм
      * @return array|string|false
      */
-    private function authorisedRequest(string $url, array $params, string $method, string $failureEvent)
+    private function authorisedRequest(string $url, array $params, string $method, string $failureEvent, array $expectedHttpCodes = [])
     {
         $this->clearErrors();
 
@@ -100,7 +128,7 @@ class CheckboxPrepaymentHelper extends CheckboxApiHelper
         }
 
         $response = $this->makeApiRequest($url, $params, ['method' => $method]);
-        if (!empty($this->errors)) {
+        if (!empty($this->errors) && !in_array((int)($this->errors['http_code'] ?? 0), $expectedHttpCodes, true)) {
             $this->logFailure($failureEvent, ['url' => $url]);
         }
 

@@ -96,11 +96,11 @@
                     {/if}
 
                     {if $checkboxChain}
-                        <div class="sviat__checkbox_alert {if $checkboxChain.pre_payment_status == 'unknown'}sviat__checkbox_alert--warning{else}sviat__checkbox_alert--info{/if}">
+                        <div class="sviat__checkbox_alert {if $checkboxChain.pre_payment_status == 'unknown' || $checkboxChain.pre_payment_status == 'not_found'}sviat__checkbox_alert--warning{else}sviat__checkbox_alert--info{/if}">
                             <div class="sviat__checkbox_alert__title">
                                 {$btr->sviat__checkbox__chain_title|escape}: {$checkboxChainStatusText|escape}
                             </div>
-                            {if $checkboxChain.pre_payment_status != 'unknown'}
+                            {if $checkboxChain.pre_payment_status != 'unknown' && $checkboxChain.pre_payment_status != 'not_found'}
                                 <div class="sviat__checkbox_alert__details">
                                     {$btr->sviat__checkbox__chain_paid|escape}
                                     {($checkboxChain.paid_sum/100)|string_format:"%.2f"}

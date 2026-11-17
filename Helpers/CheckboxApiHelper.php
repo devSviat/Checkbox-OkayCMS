@@ -132,6 +132,12 @@ class CheckboxApiHelper
         $this->logger->error('Sviat/Checkbox: ' . $event, $context);
     }
 
+    /** Стан, який потребує людини, але не є збоєм запиту. */
+    protected function logWarning(string $event, array $context = []): void
+    {
+        $this->logger?->warning('Sviat/Checkbox: ' . $event, $context);
+    }
+
     /**
      * Виконує HTTP-запит до API. Повертає розкодований JSON, рядок (для PDF/HTML) або false при помилці.
      * При HTTP 4xx/5xx або бізнес-помилці API заповнює $this->errors.

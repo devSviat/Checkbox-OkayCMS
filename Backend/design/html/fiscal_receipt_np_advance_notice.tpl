@@ -5,7 +5,7 @@
 
    Текст короткий навмисне: менеджеру тут потрібне одне число — скільки взяти
    при отриманні. Пояснення механіки він читати не буде. *}
-{if $checkboxChain && $checkboxChain.pre_payment_status == 'PARTIAL_PAID' && $checkboxChain.left_to_pay}
+{if $checkboxChain && ($checkboxChain.pre_payment_status == 'PARTIAL_PAID' || $checkboxChain.pre_payment_status == 'not_found') && $checkboxChain.left_to_pay}
     <div class="sviat__checkbox_alert sviat__checkbox_alert--warning mb-h">
         <div class="sviat__checkbox_alert__title">
             {$btr->sviat__checkbox__np_advance_title|escape}
