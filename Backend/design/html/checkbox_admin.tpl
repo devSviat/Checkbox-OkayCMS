@@ -406,6 +406,22 @@
                         {$btr->sviat__checkbox__sources_show_rare|escape}
                     </button>
                 </div>
+
+                <div class="sviat__checkbox_section_title">{$btr->sviat__checkbox__default_source|escape}</div>
+                <p class="sviat__checkbox_sources__intro">{$btr->sviat__checkbox__default_source_hint|escape}</p>
+                <div class="row">
+                    <div class="col-md-5">
+                        <div class="mb-1">
+                            <select class="form-control selectpicker" name="sviat__checkbox__default_source"
+                                    aria-label="{$btr->sviat__checkbox__default_source|escape}">
+                                <option value="">{$btr->sviat__checkbox__default_source_none|escape}</option>
+                                {foreach $checkbox_default_sources as $checkboxDefaultSource}
+                                    <option value="{$checkboxDefaultSource.key|escape}"{if $checkboxDefaultSource.key == $checkbox_default_source} selected{/if}>{$checkboxDefaultSource.label|escape}</option>
+                                {/foreach}
+                            </select>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div id="checkbox_help" class="tab">

@@ -648,6 +648,7 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
 
             return (object)['message' => $this->translations->getTranslation('sviat__checkbox__errors_order_busy')];
         }
+        $this->rememberAdvanceSource($pendingId, $source);
 
         $response = $this->withShiftRecovery(fn () => $this->prepaymentHelper->createChain($payload));
         if (!empty($this->errors) || !is_array($response)) {
@@ -712,6 +713,23 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
         $this->receiptsTableReadable = $sl->getService(Database::class)->query($sql) === true;
 
         return $this->receiptsTableReadable;
+    }
+
+    /**
+     * Джерело авансу на рядку ланцюжка — з ним відкриється форма ручної
+     * післяплати. Окремим записом, а не в saveReceiptToDatabase(): якщо запис
+     * не вдасться, ланцюжок однаково має лягти в базу.
+     */
+    private function rememberAdvanceSource(int $chainRowId, string $source): void
+    {
+        if (!FiscalReceiptsEntity::hasPaymentSource()) {
+            return;
+        }
+
+        $this->entityFactory->get(FiscalReceiptsEntity::class)->update(
+            $chainRowId,
+            [FiscalReceiptsEntity::PAYMENT_SOURCE_FIELD => $source]
+        );
     }
 
     /** Знімає рядок-намір, коли Checkbox прямо відмовив у створенні ланцюжка. */

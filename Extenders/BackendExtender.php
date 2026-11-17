@@ -22,6 +22,7 @@ use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxHelper;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxOrderPaymentGuard;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxReceiptSet;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxPaymentSources;
+use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxSourceChoice;
 use Okay\Modules\Sviat\Checkbox\Init\Init;
 
 /** Хуки адмін-панелі: чеки замовлень, зміни, податки, способи оплати */
@@ -172,6 +173,8 @@ class BackendExtender implements ExtensionInterface
         $sourcesConfig = CheckboxPaymentSources::decode($this->settings->get(Init::ADVANCE_SOURCES));
         $sources = CheckboxPaymentSources::visible($sourcesConfig);
         $this->design->assign('checkboxSources', $sources);
+        $defaultSource = CheckboxSourceChoice::pick($sources, $this->settings->get(Init::DEFAULT_SOURCE));
+        $this->design->assign('checkboxAdvanceSource', $defaultSource);
 
         // Технічний статус з API — не текст для людини. Поруч із ним іде рядок
         // «що робити далі»: без нього менеджер бачить стан, але не дію.
@@ -217,16 +220,17 @@ class BackendExtender implements ExtensionInterface
 
         // Рішення R4: джерело коштів для кнопки післяплати рахує PHP. Шаблон його
         // не вгадує — помилка тут стала б хибним рядком 19 у фіскальному чеку.
-        //
-        // Виведене зі способу оплати джерело магазин міг прибрати зі списку. Тоді
-        // жоден пункт не позначено обраним, select віддає порожнє значення, і
-        // кнопка післяплати відмовляє без видимої причини — тож підставляємо
-        // перше з наявних.
-        $afterPaymentSource = $this->checkboxHelper->orderPaymentSource((int)$order->id);
-        if (!in_array($afterPaymentSource, array_column($sources, 'key'), true)) {
-            $afterPaymentSource = $sources[0]['key'] ?? '';
-        }
-        $this->design->assign('checkboxAfterPaymentSource', $afterPaymentSource);
+        // Це лише ручна форма: автоматика (fiscaliseOrder) бере джерело зі
+        // способу оплати, бо її вибору до відправки ніхто не бачить.
+        $advanceSource = $chain === null
+            ? null
+            : CheckboxReceiptSet::advanceSource($orderReceiptRows, (string)$chain['relation_id']);
+        $this->design->assign('checkboxAfterPaymentSource', CheckboxSourceChoice::afterPayment(
+            $sources,
+            $advanceSource,
+            $defaultSource,
+            $this->checkboxHelper->orderPaymentSource((int)$order->id)
+        ));
     }
 
     /**

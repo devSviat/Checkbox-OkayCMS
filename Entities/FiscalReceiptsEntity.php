@@ -23,6 +23,14 @@ class FiscalReceiptsEntity extends Entity
     const TYPE_PREPAYMENT    = 'prepayment';
     const TYPE_AFTER_PAYMENT = 'after_payment';
 
+    /**
+     * Ключ джерела коштів авансу на рядку ланцюжка. Колонку додає update_1_7_0(),
+     * і сутність читає її лише після нього, за прапорцем PAYMENT_SOURCE_READY: до
+     * оновлення SELECT із нею падав би мовчки, і картка лишалась би без чеків.
+     */
+    public const string PAYMENT_SOURCE_FIELD = 'payment_source';
+    public const string PAYMENT_SOURCE_READY = 'sviat__checkbox__payment_source_column';
+
     protected static $fields = [
         'id',
         'order_id',
@@ -51,6 +59,11 @@ class FiscalReceiptsEntity extends Entity
     protected static $defaultOrderFields = ['id'];
 
     protected static $table = '__sviat__checkbox__fiscal_receipts';
+
+    public static function hasPaymentSource(): bool
+    {
+        return in_array(self::PAYMENT_SOURCE_FIELD, self::getFields(), true);
+    }
 
     /** Фільтр: свіжі наміри, де запит міг створити чек, а відповіді немає. Значення — вікно в днях. */
     protected function filter__pending_intent($days): void

@@ -276,11 +276,13 @@
                                     <div class="heading_label">{$btr->sviat__checkbox__advance_source_label|escape}</div>
                                     <select class="form-control selectpicker fn-checkbox-advance-source"
                                             aria-label="{$btr->sviat__checkbox__advance_source_label|escape}">
-                                        {* Порожній перший пункт: інакше перше джерело обирається саме,
-                                           і його мітка мовчки йде в рядок 19 чека. *}
+                                        {* Порожній перший пункт: без джерела за замовчуванням інакше
+                                           перше джерело обиралося б саме, і його мітка мовчки йшла б у
+                                           рядок 19 чека. Типове джерело задає магазин у налаштуваннях,
+                                           і менеджер бачить його вибраним до натискання. *}
                                         <option value="">{$btr->sviat__checkbox__advance_source_empty|escape}</option>
                                         {foreach $checkboxSources as $checkboxSource}
-                                            <option value="{$checkboxSource.key|escape}">{$checkboxSource.label|escape}</option>
+                                            <option value="{$checkboxSource.key|escape}"{if $checkboxSource.key == $checkboxAdvanceSource} selected{/if}>{$checkboxSource.label|escape}</option>
                                         {/foreach}
                                     </select>
                                 </div>

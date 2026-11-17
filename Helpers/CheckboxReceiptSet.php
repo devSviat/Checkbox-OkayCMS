@@ -90,6 +90,34 @@ final class CheckboxReceiptSet
     }
 
     /**
+     * Джерело коштів, яким прийшов аванс ланцюжка, або null.
+     *
+     * Рядків типу prepayment у ланцюжка може бути кілька: часткова післяплата
+     * лягає тим самим типом і без джерела. Тому шукаємо за relation_id
+     * поточного ланцюжка перший рядок, де джерело записане.
+     *
+     * @param iterable $receipts рядки таблиці чеків цього замовлення
+     */
+    public static function advanceSource($receipts, string $relationId): ?string
+    {
+        $found = null;
+        foreach ($receipts as $receipt) {
+            $source = $receipt->{FiscalReceiptsEntity::PAYMENT_SOURCE_FIELD} ?? null;
+            if (($receipt->receipt_type ?? null) !== FiscalReceiptsEntity::TYPE_PREPAYMENT
+                || (string)($receipt->relation_id ?? '') !== $relationId
+                || !is_string($source) || $source === ''
+            ) {
+                continue;
+            }
+            if ($found === null || (int)$receipt->id < (int)$found->id) {
+                $found = $receipt;
+            }
+        }
+
+        return $found?->{FiscalReceiptsEntity::PAYMENT_SOURCE_FIELD};
+    }
+
+    /**
      * Скільки заготовок чекає на відкриту зміну.
      *
      * Рахуються лише продаж і повернення: рядок-намір ланцюжка теж має порожній
