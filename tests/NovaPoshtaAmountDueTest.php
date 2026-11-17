@@ -22,6 +22,8 @@ class NovaPoshtaAmountDueTest extends TestCase
         yield 'післяплату вже отримано' => [self::chain('FULL_PAID', 245500, 245500), 2455.0, 0.0];
         yield 'аванс повернуто' => [self::chain('CANCELLED', 120000, 245500), 2455.0, 2455.0];
         yield 'стан невідомий' => [self::chain('unknown', null, null), 2455.0, 2455.0];
+        yield 'Checkbox не знаходить ланцюжок, аванс записаний у нас' => [self::chain('not_found', 120000, 245500), 2455.0, 1255.0];
+        yield 'Checkbox не знаходить ланцюжок, сум немає' => [self::chain('not_found', null, null), 2455.0, 2455.0];
         yield 'без авансу' => [null, 2455.0, 2455.0];
         yield 'замовлення зменшили після авансу' => [self::chain('PARTIAL_PAID', 120000, 245500), 900.0, 900.0];
     }

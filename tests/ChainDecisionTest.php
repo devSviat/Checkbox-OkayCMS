@@ -75,4 +75,20 @@ class ChainDecisionTest extends TestCase
             CheckboxChainDecision::forOrder(CheckboxChainDecision::STATUS_UNKNOWN, true)
         );
     }
+
+    /**
+     * Checkbox не знає ланцюжка, але аванс у нас записаний. Повний чек продажу
+     * тут — друга фіскалізація тих самих грошей, а післяплата не має залишку.
+     */
+    public function testNotFoundChainIsLeftAlone(): void
+    {
+        self::assertSame(
+            CheckboxChainDecision::ACTION_NONE,
+            CheckboxChainDecision::forOrder(CheckboxChainDecision::STATUS_NOT_FOUND, false)
+        );
+        self::assertSame(
+            CheckboxChainDecision::ACTION_NONE,
+            CheckboxChainDecision::forOrder(CheckboxChainDecision::STATUS_NOT_FOUND, true)
+        );
+    }
 }

@@ -23,6 +23,13 @@ final class CheckboxChainDecision
     const string STATUS_UNKNOWN = 'unknown';
 
     /**
+     * Checkbox прямо відповів, що такого ланцюжка немає (404). Аванс у нас
+     * записаний, тож для автоматики це той самий тупик, що й STATUS_UNKNOWN,
+     * але сам він не минає: його знімає лише ручне «Оновити стан».
+     */
+    const string STATUS_NOT_FOUND = 'not_found';
+
+    /**
      * @param string|null $chainStatus pre_payment_status ланцюжка; null — лише
      *                                 коли ланцюжка немає за даними бази, а не
      *                                 коли запит статусу не вдався (STATUS_UNKNOWN)
@@ -34,7 +41,8 @@ final class CheckboxChainDecision
         }
 
         // FULL_PAID, CANCELLED, PARTIAL_CANCELLED — ланцюжок відпрацював або
-        // закритий поверненням; STATUS_UNKNOWN — стан невідомий. У всіх випадках
+        // закритий поверненням; STATUS_UNKNOWN і STATUS_NOT_FOUND — залишку,
+        // підтвердженого Checkbox, немає. У всіх випадках
         // автоматика не втручається: помилка тут коштує зайвого чека.
         if ($chainStatus !== null) {
             return self::ACTION_NONE;

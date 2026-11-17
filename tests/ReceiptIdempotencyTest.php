@@ -436,6 +436,52 @@ class ReceiptIdempotencyTest extends TestCase
         self::assertSame([], $env->helper->paidCalls, 'без відповіді не можна виставляти новий чек');
     }
 
+    /**
+     * Чек післяплати пройшов, а GET стану після нього відповів 404. Чек мусить
+     * лягти в базу, а ланцюжок — стати not_found із попередженням: автоматика
+     * інакше пробувала б закрити його знову.
+     */
+    public function testNotFoundAfterPaymentStillSavesReceipt(): void
+    {
+        $missing = [
+            ['message' => 'Prepayment receipt relation not found', 'http_code' => 404,
+             'response' => ['message' => 'Prepayment receipt relation not found'],
+             'requestData' => ['url' => 'https://checkbox.test/api/v1/prepayment-receipts/CHAIN-1']],
+            ['message' => 'Prepayment receipt relation not found'],
+        ];
+        $env = $this->scripted([$this->chainIsPartlyPaid(), $this->done('final'), $missing], [$this->chainRow()]);
+        $warnings = new \ArrayObject();
+        $logger = new class ($warnings) extends \Psr\Log\AbstractLogger {
+            public function __construct(private \ArrayObject $warnings) {}
+            public function log($level, string|\Stringable $message, array $context = []): void
+            {
+                $this->warnings[] = [$level, (string) $message];
+            }
+        };
+        $api = $env->helper;
+        $prepayment = new class ($api) extends CheckboxPrepaymentHelper {
+            public function __construct(private object $api) {}
+            protected function makeApiRequest(string $url, array $params = [], array $requestParams = [])
+            {
+                $response = $this->api->call($url, $params, $requestParams['method'] ?? 'GET');
+                $this->errors = $this->api->errors;
+
+                return $response;
+            }
+        };
+        Closure::bind(function () { $this->accessToken = 'token'; }, $prepayment, \Okay\Modules\Sviat\Checkbox\Helpers\CheckboxApiHelper::class)();
+        Closure::bind(function () use ($prepayment) { $this->prepaymentHelper = $prepayment; }, $api, CheckboxReceiptsHelper::class)();
+        Closure::bind(function () use ($logger) { $this->logger = $logger; }, $api, \Okay\Modules\Sviat\Checkbox\Helpers\CheckboxApiHelper::class)();
+
+        $this->closeChain($env);
+
+        $saved = array_values(array_filter($env->entity->rows, fn ($r) => (string) $r->receipt_id === 'final'));
+        self::assertCount(1, $saved, 'чек, який Checkbox видав, мусить лягти в базу');
+        self::assertSame(FiscalReceiptsEntity::TYPE_PREPAYMENT, $saved[0]->receipt_type, 'без підтвердження FULL_PAID тип — найкраща здогадка');
+        self::assertSame('not_found', $env->entity->rows[0]->chain_status);
+        self::assertSame([['warning', 'Sviat/Checkbox: chain not found in Checkbox']], $warnings->getArrayCopy());
+    }
+
     private function chainRow(): object
     {
         $row = $this->row(1, 'advance', 'prepayment', 'CHAIN-1');
