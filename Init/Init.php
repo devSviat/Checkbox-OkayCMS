@@ -46,6 +46,7 @@ class Init extends AbstractInit
     public const CASHIER_LICENSE_KEY = 'sviat__checkbox__cashier_license_key';
 
     public const ADVANCE_SOURCES = 'sviat__checkbox__advance_sources';
+    public const DEFAULT_SOURCE  = 'sviat__checkbox__default_source';
 
     public const CHAIN_FORMAT = 'sviat__checkbox__chain_format';
     public const CHAIN_PREFIX = 'sviat__checkbox__chain_prefix';
@@ -192,6 +193,50 @@ class Init extends AbstractInit
         }
     }
 
+    public function update_1_7_0(): void
+    {
+        $serviceLocator = ServiceLocator::getInstance();
+        /** @var Database $db */
+        $db = $serviceLocator->getService(Database::class);
+        $queryFactory = $serviceLocator->getService(QueryFactory::class);
+        self::addPaymentSourceColumnWith(
+            fn(EntityField $field) => $this->migrateEntityField(FiscalReceiptsEntity::class, $field),
+            static function () use ($db, $queryFactory): array {
+                $db->query($queryFactory->newSqlQuery()->setStatement('SHOW COLUMNS FROM `' . FiscalReceiptsEntity::getTable() . '`'));
+
+                return array_map(static fn(object $column): string => (string)$column->Field, $db->results() ?: []);
+            },
+            static fn() => $serviceLocator->getService(Settings::class)->set(FiscalReceiptsEntity::PAYMENT_SOURCE_READY, '1'),
+        );
+    }
+
+    /**
+     * Ядро ковтає помилку ALTER, тож прапорець, з яким сутність починає читати
+     * колонку, ставиться лише тоді, коли таблиця її справді показала. Повторний
+     * запуск безпечний: migrateEntityField() додає лише відсутню колонку.
+     *
+     * @param \Closure(EntityField): void $migrate
+     * @param \Closure(): list<string> $columns назви колонок таблиці чеків
+     * @param \Closure(): void $markReady
+     * @return bool false — колонки немає, прапорець не поставлено
+     */
+    public static function addPaymentSourceColumnWith(\Closure $migrate, \Closure $columns, \Closure $markReady): bool
+    {
+        $migrate(self::paymentSourceColumn());
+        if (!in_array(FiscalReceiptsEntity::PAYMENT_SOURCE_FIELD, $columns(), true)) {
+            return false;
+        }
+        $markReady();
+
+        return true;
+    }
+
+    /** Без значення за замовчуванням: аванси до 1.7.0 лишаються NULL, тобто «джерело невідоме». */
+    public static function paymentSourceColumn(): EntityField
+    {
+        return new EntityField(FiscalReceiptsEntity::PAYMENT_SOURCE_FIELD)->setTypeVarchar(255, true);
+    }
+
     /**
      * OTHER у способі оплати означав мовчазний 422 від Checkbox і невиставлений
      * чек. Значення прибрано з enum, тож наявні записи треба перевести до того,
@@ -305,6 +350,10 @@ class Init extends AbstractInit
         $this->registerEntityField(PaymentsEntity::class, self::PAYMENT_SKIP_FIELD);
         $this->registerEntityField(PaymentsEntity::class, self::PAYMENT_LABEL_FIELD);
         $this->registerEntityField(PaymentsEntity::class, self::PAYMENT_TYPE_FIELD);
+        $settings = ServiceLocator::getInstance()->getService(Settings::class);
+        if ($settings->get(FiscalReceiptsEntity::PAYMENT_SOURCE_READY)) {
+            $this->registerEntityField(FiscalReceiptsEntity::class, FiscalReceiptsEntity::PAYMENT_SOURCE_FIELD);
+        }
 
         $this->addBackendBlock('payment_custom_block', 'fiscal_receipt_payment_type_block.tpl');
         $this->addBackendBlock('product_relations', 'fiscal_receipt_product_taxes.tpl');

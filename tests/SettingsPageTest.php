@@ -19,6 +19,7 @@ class SettingsPageTest extends TestCase
             'sviat__checkbox__chain_format',
             'sviat__checkbox__chain_prefix',
             'sviat__checkbox__create_receipt_on_received',
+            'sviat__checkbox__default_source',
             'sviat__checkbox__installed_at',
             'sviat__checkbox__order_status_id',
             'sviat__checkbox__receipt_text',

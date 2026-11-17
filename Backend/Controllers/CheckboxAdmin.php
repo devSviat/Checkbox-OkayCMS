@@ -14,6 +14,7 @@ use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxHelper;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxPaymentCatalogue;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxApiHelper;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxPaymentSources;
+use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxSourceChoice;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxReceiptDelivery;
 use Okay\Modules\Sviat\Checkbox\Init\Init;
 use Okay\Modules\Sviat\Checkbox\Security\PlainSettingValue;
@@ -46,7 +47,7 @@ class CheckboxAdmin extends IndexAdmin
             $this->saveTextSetting('sviat__checkbox__cashier_login');
             $this->saveSecretSetting('sviat__checkbox__cashier_password');
             $this->saveSecretSetting('sviat__checkbox__cashier_license_key');
-            $this->saveAdvanceSources();
+            $this->saveDefaultSource($this->saveAdvanceSources());
             $this->settings->set(Init::REQUIRE_PAYMENT_METHOD, $this->request->post(Init::REQUIRE_PAYMENT_METHOD, 'integer') ? 1 : 0);
 
             // Префікс читається сирим: фільтр рядка лишає лише літери, цифри
@@ -114,9 +115,11 @@ class CheckboxAdmin extends IndexAdmin
         $this->design->assign('checkbox_chain_example_prefix', CheckboxChainId::build(22674, 0, $chainPrefix));
         $this->design->assign('checkbox_chain_example_digits', CheckboxChainId::build(22674, 0, null));
 
-        $this->design->assign('checkbox_advance_sources', CheckboxPaymentSources::rows(
-            CheckboxPaymentSources::decode($this->settings->get(Init::ADVANCE_SOURCES))
-        ));
+        $sourcesConfig = CheckboxPaymentSources::decode($this->settings->get(Init::ADVANCE_SOURCES));
+        $this->design->assign('checkbox_advance_sources', CheckboxPaymentSources::rows($sourcesConfig));
+        $defaultSources = CheckboxPaymentSources::visible($sourcesConfig);
+        $this->design->assign('checkbox_default_sources', $defaultSources);
+        $this->design->assign('checkbox_default_source', CheckboxSourceChoice::pick($defaultSources, $this->settings->get(Init::DEFAULT_SOURCE)));
 
         $this->design->assign('orders_statuses', $orderStatusEntity->find());
         $this->design->assign('is_carrier_available', ServiceLocator::getInstance()->getService(ReceivedParcels::class)->available());
@@ -147,8 +150,10 @@ class CheckboxAdmin extends IndexAdmin
      * Засоби платежу з місцем під назву дають не один запис, а стільки, скільки
      * магазин завів платіжних систем: NovaPay і LiqPay — два різні джерела
      * одного шаблону.
+     *
+     * @return array{enabled: string[], names: array<string, string[]>} збережений набір
      */
-    private function saveAdvanceSources(): void
+    private function saveAdvanceSources(): array
     {
         $enabled = $this->request->post('sviat__checkbox__source_enabled');
         $keys = is_array($enabled) ? array_keys($enabled) : [];
@@ -182,7 +187,25 @@ class CheckboxAdmin extends IndexAdmin
             }
         }
 
-        $this->settings->set(Init::ADVANCE_SOURCES, CheckboxPaymentSources::encode($keys, $names));
+        $encoded = CheckboxPaymentSources::encode($keys, $names);
+        $this->settings->set(Init::ADVANCE_SOURCES, $encoded);
+
+        return CheckboxPaymentSources::decode($encoded);
+    }
+
+    /**
+     * Типове джерело перевіряється за набором, збереженим тим самим запитом:
+     * вимкнене зараз джерело не може стати типовим. Читається сирим — двокрапку
+     * в ключі `integrator:NovaPay` фільтр рядка вирізав би.
+     *
+     * @param array{enabled: string[], names: array<string, string[]>} $sourcesConfig
+     */
+    private function saveDefaultSource(array $sourcesConfig): void
+    {
+        $this->settings->set(Init::DEFAULT_SOURCE, CheckboxSourceChoice::pick(
+            CheckboxPaymentSources::visible($sourcesConfig),
+            $this->request->post(Init::DEFAULT_SOURCE)
+        ));
     }
 
     private function saveTextSetting(string $name): void
