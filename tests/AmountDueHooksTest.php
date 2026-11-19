@@ -4,11 +4,12 @@ namespace Modules\Sviat\Checkbox;
 
 use Okay\Modules\Sviat\Checkbox\Init\Init;
 use Okay\Modules\Sviat\NovaPoshta\Waybills\AmountDue as NpAmountDue;
+use Okay\Modules\Sviat\RozetkaDelivery\Parcels\AmountDue as RzAmountDue;
 use Okay\Modules\Sviat\Ukrposhta\Shipments\AmountDue as UpAmountDue;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Аванс зменшує післяплату в накладних обох перевізників. На стоку цих модулів немає,
+ * Аванс зменшує післяплату в накладних усіх перевізників. На стоку цих модулів немає,
  * а реєстрація розширення на відсутній метод кидає виняток, тож хук є лише для наявного класу.
  */
 class AmountDueHooksTest extends TestCase
@@ -17,7 +18,7 @@ class AmountDueHooksTest extends TestCase
     {
         $hooks = Init::amountDueHooks();
 
-        foreach ([NpAmountDue::class, UpAmountDue::class] as $class) {
+        foreach ([NpAmountDue::class, UpAmountDue::class, RzAmountDue::class] as $class) {
             if (method_exists($class, 'onPickup')) {
                 self::assertContains(['class' => $class, 'method' => 'onPickup'], $hooks);
             } else {
@@ -40,5 +41,22 @@ class AmountDueHooksTest extends TestCase
         }
 
         self::assertContains(['class' => UpAmountDue::class, 'method' => 'onPickup'], Init::amountDueHooks());
+    }
+
+    public function testRozetkaHookedInThisEngine(): void
+    {
+        if (!class_exists(RzAmountDue::class)) {
+            self::markTestSkipped('Sviat/RozetkaDelivery is not in this engine');
+        }
+
+        self::assertContains(['class' => RzAmountDue::class, 'method' => 'onPickup'], Init::amountDueHooks());
+    }
+
+    /** Стоковий рушій без модуля доставки: класу немає, і хука на нього теж. */
+    public function testMissingRozetkaClassSkipped(): void
+    {
+        $missing = 'Okay\\Modules\\Sviat\\RozetkaDelivery\\Parcels\\NoSuchAmountDue';
+
+        self::assertSame([], Init::existingHooks([['class' => $missing, 'method' => 'onPickup']]));
     }
 }

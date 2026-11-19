@@ -13,6 +13,7 @@ use Okay\Core\Request;
 use Okay\Core\Settings;
 use Okay\Entities\OrdersEntity;
 use Okay\Entities\PaymentsEntity;
+use Okay\Modules\Sviat\Checkbox\Carriers\CodCarriers;
 use Okay\Modules\Sviat\Checkbox\Entities\FiscalReceiptsEntity;
 use Okay\Modules\Sviat\Checkbox\Entities\CashierShiftsEntity;
 use Okay\Modules\Sviat\Checkbox\Entities\TaxGroupsEntity;
@@ -20,6 +21,8 @@ use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxCardActions;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxChainDecision;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxHelper;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxOrderPaymentGuard;
+use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxPaymentProfile;
+use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxPaymentProfiles;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxReceiptSet;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxPaymentSources;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxSourceChoice;
@@ -35,6 +38,7 @@ class BackendExtender implements ExtensionInterface
     private CheckboxHelper $checkboxHelper;
     private BackendTranslations $backendTranslations;
     private BackendPostRedirectGet $postRedirectGet;
+    private ?CheckboxPaymentProfiles $paymentProfiles = null;
 
     /** @var array<int, int> */
     private array $statusBeforeSave = [];
@@ -46,8 +50,10 @@ class BackendExtender implements ExtensionInterface
         EntityFactory $entityFactory,
         CheckboxHelper $checkboxHelper,
         BackendTranslations $backendTranslations,
-        BackendPostRedirectGet $postRedirectGet
+        BackendPostRedirectGet $postRedirectGet,
+        ?CheckboxPaymentProfiles $paymentProfiles = null
     ) {
+        $this->paymentProfiles = $paymentProfiles;
         $this->design = $design;
         $this->request = $request;
         $this->settings = $settings;
@@ -128,7 +134,7 @@ class BackendExtender implements ExtensionInterface
             ? $paymentsEntity->findOne(['id' => $order->payment_method_id])
             : null;
 
-        $dontSend = $orderPaymentMethod && !empty($orderPaymentMethod->{Init::PAYMENT_SKIP_FIELD});
+        $dontSend = $orderPaymentMethod && $this->paymentProfiles()->forOrder($order, $orderPaymentMethod)?->skip;
         $this->design->assign('orderCheckboxDontSend', $dontSend);
 
         // Стан читається зі збереженого рядка, а не рахується з наших чеків: чек
@@ -234,7 +240,7 @@ class BackendExtender implements ExtensionInterface
     }
 
     /**
-     * Сума до сплати при отриманні для накладної Нової Пошти чи відправлення Укрпошти: з отримувача
+     * Сума до сплати при отриманні для накладної Нової Пошти, відправлення Укрпошти чи ЕН ROZETKA: з отримувача
      * береться лише те, що не покрито авансом. Оголошену цінність це не змінює.
      *
      * @param float|int $amountDue
@@ -326,12 +332,37 @@ class BackendExtender implements ExtensionInterface
         }
     }
 
-    /** Хук збереження способу оплати: зберігає Checkbox-поля типу, мітки і skip-прапорець. */
+    /**
+     * Хук збереження способу оплати: рядок способу оплати й показані рядки перевізників. Рядки, яких форма не
+     * надіслала (післяплату перевізника вимкнено), лишаються як були.
+     */
     public function postPayment($paymentMethod): void
     {
         $paymentMethod->{Init::PAYMENT_TYPE_FIELD} = $this->request->post(Init::PAYMENT_TYPE_FIELD);
         $paymentMethod->{Init::PAYMENT_LABEL_FIELD} = $this->request->post(Init::PAYMENT_LABEL_FIELD);
         $paymentMethod->{Init::PAYMENT_SKIP_FIELD} = $this->request->post(Init::PAYMENT_SKIP_FIELD) ? 1 : 0;
+
+        // До update_1_8_0() колонки немає, а невідома колонка провалила б запис усього способу оплати.
+        if (!$this->settings->get(Init::CARRIER_PAYMENTS_READY)) {
+            return;
+        }
+        $rows = CheckboxPaymentProfiles::fromPost($this->request->post(Init::CARRIER_PAYMENTS_FIELD));
+        if ($rows === []) {
+            return;
+        }
+        $stored = null;
+        if (!empty($paymentMethod->id)) {
+            $current = $this->entityFactory->get(PaymentsEntity::class)->cols(['id', Init::CARRIER_PAYMENTS_FIELD])->findOne(['id' => (int)$paymentMethod->id]);
+            $stored = $current->{Init::CARRIER_PAYMENTS_FIELD} ?? null;
+        }
+        $paymentMethod->{Init::CARRIER_PAYMENTS_FIELD} = CheckboxPaymentProfiles::encode($stored, CheckboxPaymentProfile::fromMethod($paymentMethod), $rows);
+    }
+
+    /** Хук сторінки способу оплати: рядки перевізників для блоку «Чек Checkbox». */
+    public function assignCarrierRows($payment, $id = null): void
+    {
+        $ready = (bool)$this->settings->get(Init::CARRIER_PAYMENTS_READY);
+        $this->design->assign('checkbox_carrier_rows', $ready && is_object($payment) ? $this->paymentProfiles()->rows($payment) : []);
     }
 
     /** Хук зміни оплаченості замовлення: створює чеки для щойно оплачених замовлень. */
@@ -366,7 +397,7 @@ class BackendExtender implements ExtensionInterface
 
         if (!empty($order->payment_method_id)) {
             $paymentMethod = $this->entityFactory->get(PaymentsEntity::class)->findOne(['id' => $order->payment_method_id]);
-            if ($paymentMethod && !empty($paymentMethod->{Init::PAYMENT_SKIP_FIELD})) {
+            if ($paymentMethod && $this->paymentProfiles()->forOrder($order, $paymentMethod)?->skip) {
                 return;
             }
         }
@@ -383,10 +414,13 @@ class BackendExtender implements ExtensionInterface
         }
 
         $orders = $this->entityFactory->get(OrdersEntity::class)->mappedBy('id')->find(['id' => array_map(intval(...), $ids)]);
-        $skippedMethods = $this->entityFactory->get(PaymentsEntity::class)->mappedBy('id')->find([Init::PAYMENT_SKIP_FIELD => 1]);
+        $methodIds = array_values(array_unique(array_filter(array_map(static fn(object $order): int => (int)$order->payment_method_id, $orders))));
+        $methods = $methodIds === [] ? [] : $this->entityFactory->get(PaymentsEntity::class)->mappedBy('id')->find(['id' => $methodIds]);
+
+        $profiles = $this->paymentProfiles()->forOrders($orders, $methods);
 
         foreach ($orders as $order) {
-            if ((int)$order->status_id !== $completedStatusId || isset($skippedMethods[$order->payment_method_id])) {
+            if ((int)$order->status_id !== $completedStatusId || !empty($profiles[(int)$order->id]->skip)) {
                 continue;
             }
             try {
@@ -409,5 +443,11 @@ class BackendExtender implements ExtensionInterface
     {
         $this->entityFactory->get(OrdersEntity::class)->update($orderId, ['paid' => 1]);
         $this->checkboxHelper->createReceiptsForPaidOrders([$orderId], 1);
+    }
+
+    /** Тести будують екстендер без конструктора, тож сервіс збирається на першому зверненні. */
+    private function paymentProfiles(): CheckboxPaymentProfiles
+    {
+        return $this->paymentProfiles ??= new CheckboxPaymentProfiles($this->entityFactory, new CodCarriers($this->entityFactory, $this->settings));
     }
 }

@@ -17,6 +17,7 @@ use Okay\Core\Modules\AbstractInit;
 use Okay\Admin\Helpers\BackendMainHelper;
 use Okay\Admin\Helpers\BackendOrdersHelper;
 use Okay\Admin\Helpers\BackendProductsHelper;
+use Okay\Admin\Helpers\BackendPaymentsHelper;
 use Okay\Admin\Requests\BackendPaymentsRequest;
 use Okay\Admin\Requests\BackendProductsRequest;
 use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxHelper;
@@ -29,6 +30,7 @@ use Okay\Modules\Sviat\Checkbox\Entities\CashierShiftsEntity;
 use Okay\Modules\Sviat\Checkbox\Entities\FiscalReceiptsEntity;
 use Okay\Modules\Sviat\NovaPoshta\Waybills\AmountDue;
 use Okay\Modules\Sviat\Ukrposhta\Shipments\AmountDue as UkrposhtaAmountDue;
+use Okay\Modules\Sviat\RozetkaDelivery\Parcels\AmountDue as RozetkaAmountDue;
 use Okay\Modules\Sviat\NovaPoshtaTracking\Helpers\NovaPoshtaPaymentHelper;
 
 class Init extends AbstractInit
@@ -38,6 +40,10 @@ class Init extends AbstractInit
     public const PAYMENT_TYPE_FIELD  = 'sviat__checkbox__payment_type';
     public const PAYMENT_LABEL_FIELD = 'sviat__checkbox__payment_label';
     public const PAYMENT_SKIP_FIELD  = 'sviat__checkbox__payment_skip';
+    /** JSON рядків перевізників: CheckboxPaymentProfiles. */
+    public const CARRIER_PAYMENTS_FIELD = 'sviat__checkbox__carrier_payments';
+    /** Сутність читає колонку лише після update_1_8_0(): до нього SELECT із нею падав би мовчки, як payment_source. */
+    public const CARRIER_PAYMENTS_READY = 'sviat__checkbox__carrier_payments_column';
 
     public const PRODUCT_TAX_GROUPS_TABLE = '__sviat__checkbox__product_tax_groups';
 
@@ -222,8 +228,51 @@ class Init extends AbstractInit
      */
     public static function addPaymentSourceColumnWith(\Closure $migrate, \Closure $columns, \Closure $markReady): bool
     {
-        $migrate(self::paymentSourceColumn());
-        if (!in_array(FiscalReceiptsEntity::PAYMENT_SOURCE_FIELD, $columns(), true)) {
+        return self::addColumnWith(self::paymentSourceColumn(), $migrate, $columns, $markReady);
+    }
+
+    /** Колонка рядків перевізників (1.8.0); той самий порядок, що й для payment_source. */
+    public function update_1_8_0(): void
+    {
+        $serviceLocator = ServiceLocator::getInstance();
+        /** @var Database $db */
+        $db = $serviceLocator->getService(Database::class);
+        $queryFactory = $serviceLocator->getService(QueryFactory::class);
+        self::addCarrierPaymentsColumnWith(
+            fn(EntityField $field) => $this->migrateEntityField(PaymentsEntity::class, $field),
+            static function () use ($db, $queryFactory): array {
+                $db->query($queryFactory->newSqlQuery()->setStatement('SHOW COLUMNS FROM `' . PaymentsEntity::getTable() . '`'));
+
+                return array_map(static fn(object $column): string => (string)$column->Field, $db->results() ?: []);
+            },
+            static fn() => $serviceLocator->getService(Settings::class)->set(self::CARRIER_PAYMENTS_READY, '1'),
+        );
+    }
+
+    /**
+     * @param \Closure(EntityField): void $migrate
+     * @param \Closure(): list<string> $columns назви колонок таблиці способів оплати
+     * @param \Closure(): void $markReady
+     */
+    public static function addCarrierPaymentsColumnWith(\Closure $migrate, \Closure $columns, \Closure $markReady): bool
+    {
+        return self::addColumnWith(self::carrierPaymentsColumn(), $migrate, $columns, $markReady);
+    }
+
+    public static function carrierPaymentsColumn(): EntityField
+    {
+        return new EntityField(self::CARRIER_PAYMENTS_FIELD)->setTypeText()->setNullable();
+    }
+
+    /**
+     * @param \Closure(EntityField): void $migrate
+     * @param \Closure(): list<string> $columns
+     * @param \Closure(): void $markReady
+     */
+    private static function addColumnWith(EntityField $field, \Closure $migrate, \Closure $columns, \Closure $markReady): bool
+    {
+        $migrate($field);
+        if (!in_array($field->getName(), $columns(), true)) {
             return false;
         }
         $markReady();
@@ -354,6 +403,9 @@ class Init extends AbstractInit
         if ($settings->get(FiscalReceiptsEntity::PAYMENT_SOURCE_READY)) {
             $this->registerEntityField(FiscalReceiptsEntity::class, FiscalReceiptsEntity::PAYMENT_SOURCE_FIELD);
         }
+        if ($settings->get(self::CARRIER_PAYMENTS_READY)) {
+            $this->registerEntityField(PaymentsEntity::class, self::CARRIER_PAYMENTS_FIELD);
+        }
 
         $this->addBackendBlock('payment_custom_block', 'fiscal_receipt_payment_type_block.tpl');
         $this->addBackendBlock('product_relations', 'fiscal_receipt_product_taxes.tpl');
@@ -363,6 +415,7 @@ class Init extends AbstractInit
         // Менеджер бачить, звідки в накладній узялась сума, менша за замовлення.
         $this->addBackendBlock('novaposhta_document_payment', 'fiscal_receipt_np_advance_notice.tpl');
         $this->addBackendBlock('ukrposhta_shipment_payment', 'fiscal_receipt_np_advance_notice.tpl');
+        $this->addBackendBlock('rozetka_parcel_payment', 'fiscal_receipt_np_advance_notice.tpl');
         foreach (self::amountDueHooks() as $hook) {
             $this->registerChainExtension($hook, ['class' => BackendExtender::class, 'method' => 'amountDueOnPickup']);
         }
@@ -401,6 +454,10 @@ class Init extends AbstractInit
         $this->registerQueueExtension(
             ['class' => BackendPaymentsRequest::class, 'method' => 'postPayment'],
             ['class' => BackendExtender::class,        'method' => 'postPayment']
+        );
+        $this->registerQueueExtension(
+            ['class' => BackendPaymentsHelper::class, 'method' => 'getPaymentMethod'],
+            ['class' => BackendExtender::class,       'method' => 'assignCarrierRows']
         );
         $this->registerQueueExtension(
             ['class' => BackendProductsHelper::class,  'method' => 'getProduct'],
@@ -486,19 +543,28 @@ class Init extends AbstractInit
     }
 
     /**
-     * Методи модулів Нової Пошти й Укрпошти, що рахують суму до сплати при отриманні; Checkbox віднімає з неї аванс.
-     * Модуль може бути не встановлений або старої версії, а реєстрація на відсутній метод кидає виняток.
+     * Методи модулів доставки, що рахують суму до сплати при отриманні; Checkbox віднімає з неї аванс.
      *
      * @return list<array{class: class-string, method: string}>
      */
     public static function amountDueHooks(): array
     {
-        $candidates = [
+        return self::existingHooks([
             ['class' => AmountDue::class, 'method' => 'onPickup'],
             ['class' => UkrposhtaAmountDue::class, 'method' => 'onPickup'],
+            ['class' => RozetkaAmountDue::class, 'method' => 'onPickup'],
             ['class' => NovaPoshtaPaymentHelper::class, 'method' => 'amountDueOnPickup'],
-        ];
+        ]);
+    }
 
+    /**
+     * Модуль може бути не встановлений або старої версії, а реєстрація на відсутній метод кидає виняток.
+     *
+     * @param list<array{class: string, method: string}> $candidates
+     * @return list<array{class: class-string, method: string}>
+     */
+    public static function existingHooks(array $candidates): array
+    {
         return array_values(array_filter($candidates, static fn(array $hook): bool => method_exists($hook['class'], $hook['method'])));
     }
 }

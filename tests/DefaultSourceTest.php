@@ -547,7 +547,8 @@ class DefaultSourceTest extends TestCase
         $manifest = json_decode((string)file_get_contents(self::MODULE . '/Init/module.json'), true);
 
         self::assertTrue(method_exists(Init::class, 'update_1_7_0'));
-        self::assertSame('1.7.0', $manifest['version']);
+        // Міграція 1.7.0 має запуститися на будь-якій пізнішій версії модуля.
+        self::assertTrue(version_compare($manifest['version'], '1.7.0', '>='), $manifest['version']);
     }
 
     public function testInitRegistersColumnOnlyAfterTheUpdate(): void

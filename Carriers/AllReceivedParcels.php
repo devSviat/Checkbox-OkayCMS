@@ -2,22 +2,35 @@
 
 namespace Okay\Modules\Sviat\Checkbox\Carriers;
 
-/** Видані посилки всіх перевізників; замовлення, що є в обох, береться один раз. */
+/** Видані посилки всіх перевізників; замовлення, що є в кількох, береться один раз. */
 final class AllReceivedParcels implements ReceivedParcels
 {
-    public function __construct(
-        private readonly NovaPoshtaReceived $novaPoshta,
-        private readonly UkrposhtaReceived $ukrposhta,
-    ) {
+    /** @var list<ReceivedParcels> */
+    private readonly array $sources;
+
+    public function __construct(ReceivedParcels ...$sources)
+    {
+        $this->sources = array_values($sources);
     }
 
     public function available(): bool
     {
-        return $this->novaPoshta->available() || $this->ukrposhta->available();
+        foreach ($this->sources as $source) {
+            if ($source->available()) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function orderIds(?string $since): array
     {
-        return array_values(array_unique([...$this->novaPoshta->orderIds($since), ...$this->ukrposhta->orderIds($since)]));
+        $ids = [];
+        foreach ($this->sources as $source) {
+            $ids = [...$ids, ...$source->orderIds($since)];
+        }
+
+        return array_values(array_unique($ids));
     }
 }
