@@ -928,3 +928,109 @@
         grid-template-columns: minmax(0, 1fr);
     }
 }
+
+/* Блок «Чек Checkbox» на сторінці способу оплати. На стоку немає токенів --ok-*, тож у кожного var() є запасне значення. */
+.sviat__checkbox_receipt__intro {
+    margin: -6px 0 14px;
+    color: var(--ok-ink-muted, #676e75);
+    font-size: 13px;
+}
+.sviat__checkbox_receipt__table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: fixed;
+}
+.sviat__checkbox_receipt__table thead th {
+    padding: 0 12px 8px;
+    color: var(--ok-ink-muted, #676e75);
+    font-size: 13px;
+    font-weight: 500;
+    text-align: left;
+}
+.sviat__checkbox_receipt__table thead th:nth-child(1) { width: 30%; }
+.sviat__checkbox_receipt__table thead th:nth-child(2) { width: 24%; }
+.sviat__checkbox_receipt__table thead th:nth-child(3) { width: 30%; }
+.sviat__checkbox_receipt__table thead th:nth-child(4) { width: 16%; }
+.sviat__checkbox_receipt__row > th,
+.sviat__checkbox_receipt__row > td {
+    padding: 10px 12px;
+    border-top: 1px solid var(--ok-line, #e4e6e9);
+    vertical-align: middle;
+    font-weight: normal;
+}
+.sviat__checkbox_receipt__row--default > th,
+.sviat__checkbox_receipt__row--default > td {
+    background: var(--ok-sunken, #fafbfc);
+}
+.sviat__checkbox_receipt__when {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+/* Логотип за шириною свого svg: відстань від фарби до тексту в усіх рядках 8px. Порожній у рядку «Звичайно». */
+.sviat__checkbox_receipt__logo {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    min-width: 22px;
+    height: 22px;
+}
+/* Ядро дає .boxed svg поля по 3px, і відстань до тексту була б 11px замість 8. */
+.sviat__checkbox_receipt__logo svg {
+    display: block;
+    margin: 0;
+}
+.sviat__checkbox_receipt__name {
+    color: var(--ok-ink, #23272b);
+    font-weight: 600;
+}
+.sviat__checkbox_receipt__hint {
+    display: block;
+    color: var(--ok-ink-muted, #676e75);
+    font-size: 12px;
+}
+.sviat__checkbox_receipt__note {
+    margin: 12px 0 0;
+    color: var(--ok-ink-muted, #676e75);
+    font-size: 12.5px;
+}
+
+/* Вузький екран: рядок стає карткою, підпис поля — над полем. */
+@media (max-width: 767px) {
+    .sviat__checkbox_receipt__table,
+    .sviat__checkbox_receipt__table tbody,
+    .sviat__checkbox_receipt__row,
+    .sviat__checkbox_receipt__row > th,
+    .sviat__checkbox_receipt__row > td {
+        display: block;
+        width: 100%;
+    }
+    .sviat__checkbox_receipt__row.hidden {
+        display: none;
+    }
+    .sviat__checkbox_receipt__table thead {
+        display: none;
+    }
+    .sviat__checkbox_receipt__row {
+        margin-bottom: 12px;
+        border: 1px solid var(--ok-line, #e4e6e9);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    .sviat__checkbox_receipt__row > th,
+    .sviat__checkbox_receipt__row > td {
+        border-top: 0;
+        padding: 8px 12px;
+    }
+    .sviat__checkbox_receipt__row > th {
+        display: flex;
+    }
+    .sviat__checkbox_receipt__row > td::before {
+        content: attr(data-label);
+        display: block;
+        margin-bottom: 4px;
+        color: var(--ok-ink-muted, #676e75);
+        font-size: 12px;
+    }
+}

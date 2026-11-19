@@ -479,3 +479,29 @@ $(document).on('change', 'select[name="payment_method_id"]', function(){
         $(this).closest('form').find('.fn-sviat-checkbox-payment-required').addClass('hidden');
     }
 });
+
+// Блок «Чек Checkbox» на сторінці способу оплати: рядок перевізника видно й надсилається, лише поки його
+// післяплату ввімкнено вище. Прихований рядок вимкнений, тож форма його не надсилає і збережений рядок лишається.
+$(function(){
+    var $rows = $('.fn_sviat_checkbox_carrier');
+    if (!$rows.length) {
+        return;
+    }
+
+    function sync($row, on) {
+        $row.toggleClass('hidden', !on);
+        $row.find('select, input').prop('disabled', !on);
+        var $select = $row.find('select.selectpicker');
+        if ($select.length && typeof $select.selectpicker === 'function') {
+            $select.selectpicker('refresh');
+        }
+    }
+
+    $rows.each(function(){
+        var $row = $(this),
+            name = $row.data('switch');
+        $(document).on('change', 'input[type="checkbox"][name="' + name + '"]', function(){
+            sync($row, this.checked);
+        });
+    });
+});

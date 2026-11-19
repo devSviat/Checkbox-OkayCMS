@@ -14,6 +14,7 @@ use Okay\Entities\ProductsEntity;
 use Okay\Entities\PurchasesEntity;
 use Okay\Entities\VariantsEntity;
 use Okay\Helpers\OrdersHelper;
+use Okay\Modules\Sviat\Checkbox\Carriers\CodCarriers;
 use Okay\Modules\Sviat\Checkbox\Carriers\ReceivedParcels;
 use Okay\Modules\Sviat\Checkbox\Entities\CashierShiftsEntity;
 use Okay\Modules\Sviat\Checkbox\Entities\FiscalReceiptsEntity;
@@ -35,6 +36,7 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
     /** @var array<int, true> */
     private array $heldOrderLocks = [];
     private CheckboxPrepaymentHelper $prepaymentHelper;
+    private ?CheckboxPaymentProfiles $paymentProfiles = null;
 
     public function __construct(CheckboxShiftsHelper $shiftsHelper, CheckboxPrepaymentHelper $prepaymentHelper)
     {
@@ -133,7 +135,8 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
         // Перевірка йде до гілки закритої зміни: інакше замовлення, яке ніколи не
         // поїде в Checkbox, лишало б по собі порожній запис, який потім ніхто не
         // забере — createReceiptsForPaidOrders() відсіює його за тим самим полем.
-        if ($paymentMethod && !empty($paymentMethod->{Init::PAYMENT_SKIP_FIELD})) {
+        $profile = $paymentMethod ? $this->paymentProfiles()->forOrder($order, $paymentMethod) : null;
+        if ($profile?->skip) {
             return (object)[
                 'message' => $this->translations->getTranslation('sviat__checkbox__payment_method_dont_send'),
             ];
@@ -168,21 +171,10 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
             return (object)$context;
         }
 
-        $paymentType = $paymentMethod->{Init::PAYMENT_TYPE_FIELD} ?? 'CASH';
-        $payments = [[
-            'type' => is_string($paymentType) ? $paymentType : 'CASH',
-            'value' => $context['goodsTotal']
-        ]];
-
-        $paymentLabel = $paymentMethod->{Init::PAYMENT_LABEL_FIELD} ?? null;
-        if (!empty($paymentLabel) && is_string($paymentLabel)) {
-            $payments[0]['label'] = $paymentLabel;
-        }
-
         $orderData = [
             'cashier_name' => $context['cashierName'],
             'goods' => $context['goods'],
-            'payments' => $payments,
+            'payments' => self::salePayments($profile, $context['goodsTotal']),
         ];
         if ($context['delivery'] !== null) {
             $orderData['delivery'] = $context['delivery'];
@@ -1135,6 +1127,21 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
     }
 
     /**
+     * Рядок payments чека продажу: форма й засіб оплати з рядка способу оплати чи перевізника.
+     *
+     * @return list<array{type: string, value: int, label?: string}>
+     */
+    public static function salePayments(?CheckboxPaymentProfile $profile, int $total): array
+    {
+        $payment = ['type' => $profile->type ?? 'CASH', 'value' => $total];
+        if ($profile?->label !== null) {
+            $payment['label'] = $profile->label;
+        }
+
+        return [$payment];
+    }
+
+    /**
      * Джерело коштів для автоматичного закриття боргу береться зі способу оплати
      * замовлення — там уже налаштовані тип і мітка.
      *
@@ -1148,21 +1155,21 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
         if ($order && !empty($order->payment_method_id)) {
             $paymentsEntity = $this->entityFactory->get(PaymentsEntity::class);
             $method = $paymentsEntity->findOne(['id' => $order->payment_method_id]);
-            $label = $method ? ($method->{Init::PAYMENT_LABEL_FIELD} ?? '') : '';
+            $profile = $method ? $this->paymentProfiles()->forOrder($order, $method) : null;
+            $label = $profile->label ?? '';
 
             // Платіжну систему шукаємо серед налаштованих, а не за одним зашитим
             // «novapay»: інтеграторів у магазина стільки, скільки він завів, і
             // спосіб оплати «Платіж LiqPay» має вести до свого запису, а не до
             // чужого. Збіг за назвою в мітці способу оплати.
-            if (is_string($label) && trim($label) !== '') {
+            if (trim($label) !== '') {
                 $integrator = $this->matchConfiguredIntegrator($label);
                 if ($integrator !== null) {
                     return $integrator;
                 }
             }
 
-            $type = $method ? ($method->{Init::PAYMENT_TYPE_FIELD} ?? '') : '';
-            if ($type === 'CASH') {
+            if ($profile?->type === 'CASH') {
                 return CheckboxPaymentForm::SOURCE_CASH;
             }
         }
@@ -1195,9 +1202,9 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
 
         $paymentsEntity = $this->entityFactory->get(PaymentsEntity::class);
         $method = $paymentsEntity->findOne(['id' => $order->payment_method_id]);
-        $label = $method ? ($method->{Init::PAYMENT_LABEL_FIELD} ?? null) : null;
+        $label = $method ? $this->paymentProfiles()->forOrder($order, $method)?->label : null;
 
-        return is_string($label) && trim($label) !== '' ? $label : null;
+        return $label !== null && trim($label) !== '' ? $label : null;
     }
 
     /**
@@ -1307,7 +1314,7 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
     }
 
     /**
-     * Cron-задача: знаходить посилки зі статусом "Отримано" (Нова Пошта, Укрпошта) і позначає замовлення як оплачені.
+     * Cron-задача: знаходить посилки зі статусом "Отримано" (Нова Пошта, Укрпошта, ROZETKA) і позначає замовлення як оплачені.
      * Обробляються тільки посилки, отримані після sviat__checkbox__installed_at —
      * це захист від масового виставлення чеків при першому запуску модуля.
      * Посилки віддає ReceivedParcels.
@@ -1414,6 +1421,8 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
             }
         }
 
+        $profiles = $this->paymentProfiles()->forOrders($orders, $paymentMethods);
+
         // orderId => ID порожнього запису в БД (null якщо немає) — для оновлення замість дублювання
         $ordersToReceipt = [];
         foreach ($orders as $order) {
@@ -1421,10 +1430,8 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
             if (empty($purchasesCounts[$orderId])) {
                 continue;
             }
-            if (!empty($order->payment_method_id) && isset($paymentMethods[$order->payment_method_id])) {
-                if (!empty($paymentMethods[$order->payment_method_id]->{Init::PAYMENT_SKIP_FIELD})) {
-                    continue;
-                }
+            if (!empty($profiles[$orderId]->skip)) {
+                continue;
             }
             if (!empty($hasSaleReceiptMap[$orderId])) {
                 continue; // вже є фіскалізований чек продажу
@@ -1575,5 +1582,14 @@ class CheckboxReceiptsHelper extends CheckboxApiHelper
             'receipt_type' => FiscalReceiptsEntity::TYPE_SALE,
         ]);
         return ($lastSaleReceipt && !empty($lastSaleReceipt->receipt_id)) ? $lastSaleReceipt->receipt_id : null;
+    }
+
+    /** Без DI: хелпер будує батьківський конструктор із ServiceLocator, а тести — без конструктора взагалі. */
+    private function paymentProfiles(): CheckboxPaymentProfiles
+    {
+        return $this->paymentProfiles ??= new CheckboxPaymentProfiles(
+            $this->entityFactory,
+            new CodCarriers($this->entityFactory, $this->settings ?? null),
+        );
     }
 }

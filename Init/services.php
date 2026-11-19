@@ -10,7 +10,10 @@ use Okay\Core\OkayContainer\Reference\ServiceReference as SR;
 use Okay\Core\Request;
 use Okay\Core\Settings;
 use Okay\Modules\Sviat\Checkbox\Carriers\AllReceivedParcels;
+use Okay\Modules\Sviat\Checkbox\Carriers\CodCarriers;
 use Okay\Modules\Sviat\Checkbox\Carriers\NovaPoshtaReceived;
+use Okay\Modules\Sviat\Checkbox\Helpers\CheckboxPaymentProfiles;
+use Okay\Modules\Sviat\Checkbox\Carriers\RozetkaReceived;
 use Okay\Modules\Sviat\Checkbox\Carriers\UkrposhtaReceived;
 use Okay\Modules\Sviat\Checkbox\Extenders\BackendExtender;
 use Okay\Modules\Sviat\Checkbox\Extenders\FrontExtender;
@@ -55,9 +58,13 @@ return [
         'class' => UkrposhtaReceived::class,
         'arguments' => [new SR(Modules::class)],
     ],
+    RozetkaReceived::class => [
+        'class' => RozetkaReceived::class,
+        'arguments' => [new SR(Modules::class), new SR(Settings::class)],
+    ],
     ReceivedParcels::class => [
         'class' => AllReceivedParcels::class,
-        'arguments' => [new SR(NovaPoshtaReceived::class), new SR(UkrposhtaReceived::class)],
+        'arguments' => [new SR(NovaPoshtaReceived::class), new SR(UkrposhtaReceived::class), new SR(RozetkaReceived::class)],
     ],
     CheckboxHelper::class => [
         'class' => CheckboxHelper::class,
@@ -78,7 +85,16 @@ return [
             new SR(CheckboxHelper::class),
             new SR(BackendTranslations::class),
             new SR(BackendPostRedirectGet::class),
+            new SR(CheckboxPaymentProfiles::class),
         ],
+    ],
+    CodCarriers::class => [
+        'class' => CodCarriers::class,
+        'arguments' => [new SR(EntityFactory::class), new SR(Settings::class)],
+    ],
+    CheckboxPaymentProfiles::class => [
+        'class' => CheckboxPaymentProfiles::class,
+        'arguments' => [new SR(EntityFactory::class), new SR(CodCarriers::class)],
     ],
     FrontExtender::class => [
         'class' => FrontExtender::class,
